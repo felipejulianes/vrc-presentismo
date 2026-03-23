@@ -4,6 +4,9 @@ import Image from 'next/image'
 import { getPlayerById, getDivisionsForUser } from '@/lib/queries/players'
 import { getStatsByYear } from '@/lib/queries/stats'
 import { formatWhatsAppNumber } from '@/lib/utils/whatsapp'
+import { createClient } from '@/lib/supabase/server'
+import { FollowupLog } from '@/components/players/FollowupLog'
+import { PlayerNotes } from '@/components/players/PlayerNotes'
 
 interface PageProps {
   params: { playerId: string }
@@ -29,9 +32,12 @@ function AttendanceBar({ pct }: { pct: number | null }) {
 }
 
 export default async function PlayerDetailPage({ params }: PageProps) {
-  const [player, divisions] = await Promise.all([
+  const supabase = await createClient()
+
+  const [player, divisions, { data: { user } }] = await Promise.all([
     getPlayerById(params.playerId),
     getDivisionsForUser(),
+    supabase.auth.getUser(),
   ])
 
   if (!player) notFound()
@@ -39,18 +45,28 @@ export default async function PlayerDetailPage({ params }: PageProps) {
   const division = divisions.find(d => d.id === player.division_id)
   const currentYear = new Date().getFullYear()
 
-  let stats = null
-  try {
-    const statsData = await getStatsByYear(player.division_id, currentYear)
-    stats = statsData.find(s => s.player_id === player.id) ?? null
-  } catch {
-    // stats not critical
-  }
+  const [statsData, { data: followupsData }, { data: notesData }] = await Promise.all([
+    getStatsByYear(player.division_id, currentYear).catch(() => []),
+    supabase
+      .from('player_followups')
+      .select('id, contact_date, contact_type, notes, created_by')
+      .eq('player_id', params.playerId)
+      .order('contact_date', { ascending: false }),
+    supabase
+      .from('player_notes')
+      .select('id, note_date, content, created_by')
+      .eq('player_id', params.playerId)
+      .order('note_date', { ascending: false }),
+  ])
+
+  const stats = (statsData as Awaited<ReturnType<typeof getStatsByYear>>).find(s => s.player_id === player.id) ?? null
 
   const waUrl = player.parent_phone
     ? `https://wa.me/${formatWhatsAppNumber(player.parent_phone)}?text=${encodeURIComponent(`Hola, soy el entrenador de ${player.first_name}`)}`
     : null
   const telUrl = player.parent_phone ? `tel:${player.parent_phone}` : null
+
+  const currentUserId = user?.id ?? ''
 
   return (
     <div className="pb-6">
@@ -181,6 +197,20 @@ export default async function PlayerDetailPage({ params }: PageProps) {
           </div>
         </div>
       </div>
+
+      {/* Seguimiento de ausentes */}
+      <FollowupLog
+        playerId={params.playerId}
+        followups={followupsData ?? []}
+        currentUserId={currentUserId}
+      />
+
+      {/* Bitácora del entrenador */}
+      <PlayerNotes
+        playerId={params.playerId}
+        notes={notesData ?? []}
+        currentUserId={currentUserId}
+      />
     </div>
   )
 }
