@@ -138,14 +138,14 @@ export function PlayerList({ players, divisions }: PlayerListProps) {
                         <Link href={`/players/${player.id}`} className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-gray-900 truncate">
                             {player.last_name}, {player.first_name}
+                            {player.sobrenombre ? ` - "${player.sobrenombre}"` : ''}
                             {player.inactivo && (
                               <span className="ml-1.5 text-xs font-normal text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">inactivo</span>
                             )}
                           </p>
                           <p className="text-xs text-gray-400 truncate">
                             {player.dni ? `DNI ${player.dni}` : ''}
-                            {player.sobrenombre ? ` · ${player.sobrenombre}` : ''}
-                            {birthYear ? ` · ${birthYear}` : ''}
+                            {birthYear ? `${player.dni ? ' · ' : ''}${birthYear}` : ''}
                           </p>
                         </Link>
 

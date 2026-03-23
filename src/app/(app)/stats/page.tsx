@@ -1,8 +1,14 @@
+import { redirect } from 'next/navigation'
 import { getDivisionsForUser } from '@/lib/queries/players'
 import { StatsDivisionSelector } from './StatsDivisionSelector'
 
 export default async function StatsPage() {
   const divisions = await getDivisionsForUser()
+
+  // Entrenador con una sola división → ir directo sin selector
+  if (divisions.length === 1) {
+    redirect(`/stats/${divisions[0].id}`)
+  }
 
   return (
     <div>

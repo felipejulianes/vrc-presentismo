@@ -25,3 +25,15 @@ body {
     text-wrap: balance;
   }
 }
+
+/* El texto escrito en inputs/selects/textarea siempre legible en negro */
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  color: #111827;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af;
+}

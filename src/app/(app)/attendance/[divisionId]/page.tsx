@@ -42,7 +42,7 @@ export default async function AttendanceDivisionPage({ params }: PageProps) {
         </Link>
         <div className="flex-1">
           <h1 className="text-xl font-bold text-gray-900">{division.name}</h1>
-          <p className="text-sm text-gray-500">Historial de listas</p>
+          <p className="text-sm text-gray-500">Asistencia a entrenamientos</p>
         </div>
         {/* Botón nueva lista */}
         <Link
@@ -52,7 +52,7 @@ export default async function AttendanceDivisionPage({ params }: PageProps) {
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          Nueva lista
+          Tomar Asistencia
         </Link>
       </div>
 
