@@ -56,10 +56,15 @@ export default async function AttendanceDivisionPage({ params }: PageProps) {
     const act = activitiesNested[i].find(a => a.division_id === divisionId)
     if (act) {
       if (act.activity_type === 'partido') {
+        // opponent_club_name = name of first opponent (from DB join)
+        // opponent_club_ids.length tells us if there are more
+        const extraCount = (act.opponent_club_ids?.length ?? 0) - 1
+        const vsText = act.opponent_club_name
+          ? `vs ${act.opponent_club_name}${extraCount > 0 ? ` +${extraCount}` : ''}`
+          : ''
         const parts = ['⚽ Partido']
-        if (act.opponent_club_name) parts.push(`vs ${act.opponent_club_name}`)
+        if (vsText) parts.push(vsText)
         if (act.venue) parts.push(act.venue === 'local' ? '· Local' : '· Visitante')
-        if (act.location_club_name) parts.push(`en ${act.location_club_name}`)
         activityByDate[upcomingDates[i]] = parts.join(' ')
       } else {
         activityByDate[upcomingDates[i]] = '🏃 Entrenamiento'

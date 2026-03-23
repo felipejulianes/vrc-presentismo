@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import {
   saveDivisionActivity,
   deleteDivisionActivity,
@@ -48,7 +48,7 @@ export function SabadoSetupGrid({ date, divisions, activities, clubs: initialClu
             <tr className="text-gray-400 uppercase tracking-wide border-b border-gray-200">
               <th className="text-left py-1.5 pl-1 w-14">Div.</th>
               <th className="text-center py-1.5 w-28">Actividad</th>
-              <th className="text-left py-1.5 px-2">Rival</th>
+              <th className="text-left py-1.5 px-2">Rival(es)</th>
               <th className="text-center py-1.5 w-20">Sede</th>
               <th className="text-left py-1.5 px-2">Dónde</th>
               <th className="text-left py-1.5 px-2">Bondi</th>
@@ -105,6 +105,89 @@ export function SabadoSetupGrid({ date, divisions, activities, clubs: initialClu
   )
 }
 
+// ── Multi-club selector ──────────────────────────────────────
+
+function MultiClubSelect({
+  clubs,
+  selectedIds,
+  onChange,
+}: {
+  clubs: OpponentClub[]
+  selectedIds: string[]
+  onChange: (ids: string[]) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [open])
+
+  const selectedNames = selectedIds
+    .map(id => clubs.find(c => c.id === id)?.name)
+    .filter(Boolean) as string[]
+
+  const label =
+    selectedNames.length === 0
+      ? '—'
+      : selectedNames.length === 1
+      ? selectedNames[0]
+      : `${selectedNames[0]} +${selectedNames.length - 1}`
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className={`w-full text-left px-1.5 py-0.5 border rounded text-xs truncate max-w-[120px] focus:outline-none focus:ring-1 focus:ring-vrc-green ${
+          selectedIds.length > 0 ? 'border-blue-300 bg-blue-50 text-blue-800 font-medium' : 'border-gray-300 text-gray-500'
+        }`}
+      >
+        {label}
+      </button>
+
+      {open && (
+        <div className="absolute z-50 top-full left-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[180px] py-1">
+          <p className="text-xs text-gray-400 px-3 pt-1 pb-1 border-b border-gray-100">Seleccioná los rivales</p>
+          <div className="max-h-48 overflow-y-auto">
+            {clubs.map(c => (
+              <label
+                key={c.id}
+                className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(c.id)}
+                  onChange={e => {
+                    const next = e.target.checked
+                      ? [...selectedIds, c.id]
+                      : selectedIds.filter(id => id !== c.id)
+                    onChange(next)
+                  }}
+                  className="w-3 h-3 accent-green-700 flex-shrink-0"
+                />
+                <span className="text-xs text-gray-700">{c.name}</span>
+              </label>
+            ))}
+          </div>
+          <div className="border-t border-gray-100 px-3 py-1.5">
+            <button
+              onClick={() => setOpen(false)}
+              className="text-xs font-semibold text-vrc-green"
+            >
+              Listo
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Grid row per division ───────────────────────────────────
 
 interface RowProps {
@@ -118,7 +201,11 @@ interface RowProps {
 
 function GridRow({ date, division, activity, clubs, buses, onNeedClub }: RowProps) {
   const [type, setType] = useState<'partido' | 'entrenamiento' | ''>(activity?.activity_type ?? '')
-  const [opponentId, setOpponentId] = useState(activity?.opponent_club_id ?? '')
+  const [opponentIds, setOpponentIds] = useState<string[]>(
+    activity?.opponent_club_ids?.length ? activity.opponent_club_ids
+    : activity?.opponent_club_id ? [activity.opponent_club_id]
+    : []
+  )
   const [venue, setVenue] = useState<'local' | 'visitante' | ''>(activity?.venue ?? '')
   const [locationId, setLocationId] = useState(activity?.location_club_id ?? '')
   const [busId, setBusId] = useState(activity?.bus_id ?? '')
@@ -127,7 +214,11 @@ function GridRow({ date, division, activity, clubs, buses, onNeedClub }: RowProp
 
   function save(
     overrides: Partial<{
-      t: typeof type; opp: string; v: typeof venue; loc: string; bus: string
+      t: typeof type
+      opps: string[]
+      v: typeof venue
+      loc: string
+      bus: string
     }> = {}
   ) {
     const t = overrides.t ?? type
@@ -137,12 +228,12 @@ function GridRow({ date, division, activity, clubs, buses, onNeedClub }: RowProp
     fd.append('division_id', division.id)
     fd.append('activity_type', t)
     const v = overrides.v ?? venue
-    const opp = overrides.opp ?? opponentId
+    const opps = overrides.opps ?? opponentIds
     const loc = overrides.loc ?? locationId
     const bus = overrides.bus ?? busId
     if (t === 'partido') {
       if (v) fd.append('venue', v)
-      if (opp) fd.append('opponent_club_id', opp)
+      for (const id of opps) fd.append('opponent_club_id', id)
       if (loc) fd.append('location_club_id', loc)
     }
     if (bus) fd.append('bus_id', bus)
@@ -155,8 +246,8 @@ function GridRow({ date, division, activity, clubs, buses, onNeedClub }: RowProp
 
   function handleType(t: 'partido' | 'entrenamiento') {
     setType(t)
-    if (t === 'entrenamiento') { setOpponentId(''); setVenue(''); setLocationId('') }
-    save({ t })
+    if (t === 'entrenamiento') { setOpponentIds([]); setVenue(''); setLocationId('') }
+    save({ t, opps: t === 'entrenamiento' ? [] : opponentIds })
   }
 
   function handleVenue(v: 'local' | 'visitante') {
@@ -165,12 +256,17 @@ function GridRow({ date, division, activity, clubs, buses, onNeedClub }: RowProp
     save({ v })
   }
 
+  function handleOpponents(ids: string[]) {
+    setOpponentIds(ids)
+    save({ opps: ids })
+  }
+
   function handleDelete() {
     startTransition(async () => {
       await deleteDivisionActivity(division.id, date)
       setType('')
       setVenue('')
-      setOpponentId('')
+      setOpponentIds([])
       setLocationId('')
       setBusId('')
     })
@@ -201,19 +297,16 @@ function GridRow({ date, division, activity, clubs, buses, onNeedClub }: RowProp
         </div>
       </td>
 
-      {/* Rival */}
+      {/* Rivals (multi-select) */}
       <td className="py-2 px-1">
         {isPartido ? (
           <div className="flex gap-1 items-center">
-            <select
-              value={opponentId}
-              onChange={e => { setOpponentId(e.target.value); save({ opp: e.target.value }) }}
-              className="flex-1 px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-vrc-green min-w-[80px]"
-            >
-              <option value="">—</option>
-              {clubs.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <button onClick={onNeedClub} className="text-gray-400 hover:text-vrc-green text-xs">+</button>
+            <MultiClubSelect
+              clubs={clubs}
+              selectedIds={opponentIds}
+              onChange={handleOpponents}
+            />
+            <button onClick={onNeedClub} className="text-gray-400 hover:text-vrc-green text-xs flex-shrink-0" title="Agregar club">+</button>
           </div>
         ) : (
           <span className="text-gray-300 text-xs">—</span>

@@ -19,8 +19,11 @@ export type DivisionActivity = {
   division_id: string
   activity_type: 'partido' | 'entrenamiento'
   venue: 'local' | 'visitante' | null
+  // Primary opponent (first in list) — kept for backwards-compat banner display
   opponent_club_id: string | null
   opponent_club_name: string | null
+  // All opponents (multi-club support)
+  opponent_club_ids: string[]
   location_club_id: string | null
   location_club_name: string | null
   location_notes: string | null
@@ -73,7 +76,7 @@ export async function getActivitiesForDate(date: string): Promise<DivisionActivi
     .from('division_activities')
     .select(`
       id, activity_date, division_id, activity_type, venue,
-      opponent_club_id, location_club_id, location_notes, bus_id,
+      opponent_club_id, opponent_club_ids, location_club_id, location_notes, bus_id,
       opponent_clubs:opponent_club_id(name),
       location_club:location_club_id(name),
       event_buses(label, driver_phone)
@@ -94,6 +97,7 @@ export async function getActivitiesForDate(date: string): Promise<DivisionActivi
     venue: r.venue as 'local' | 'visitante' | null,
     opponent_club_id: r.opponent_club_id as string | null,
     opponent_club_name: pickName(r.opponent_clubs),
+    opponent_club_ids: (r.opponent_club_ids as string[] | null) ?? [],
     location_club_id: r.location_club_id as string | null,
     location_club_name: pickName(r.location_club),
     location_notes: r.location_notes as string | null,

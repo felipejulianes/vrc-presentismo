@@ -49,15 +49,19 @@ export default async function SessionPage({ params }: PageProps) {
   ])
 
   // Build activity banner text
+  const clubById = Object.fromEntries(clubs.map(c => [c.id, c.name]))
+
   let activityBanner: { label: string; sub: string; color: string } | null = null
   if (activity) {
     if (activity.activity_type === 'partido') {
-      const parts: string[] = []
-      if (activity.opponent_club_name) parts.push(`vs ${activity.opponent_club_name}`)
-      if (activity.venue) parts.push(activity.venue === 'local' ? 'Local' : 'Visitante')
+      const opponentNames = activity.opponent_club_ids.length > 0
+        ? activity.opponent_club_ids.map(id => clubById[id]).filter(Boolean)
+        : activity.opponent_club_name ? [activity.opponent_club_name] : []
+      const vsText = opponentNames.length > 0 ? `vs ${opponentNames.join(', ')}` : ''
+      const venueText = activity.venue === 'local' ? 'Local' : activity.venue === 'visitante' ? 'Visitante' : ''
       const where = activity.venue === 'local' ? 'VRC' : activity.location_club_name ?? activity.location_notes
       activityBanner = {
-        label: `⚽ Partido${parts.length ? ' — ' + parts.join(' · ') : ''}`,
+        label: `⚽ Partido${vsText ? ' — ' + vsText : ''}${venueText ? ' · ' + venueText : ''}`,
         sub: where ? `Sede: ${where}` : '',
         color: 'bg-blue-50 border-blue-200 text-blue-800',
       }

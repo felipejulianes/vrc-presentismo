@@ -87,7 +87,9 @@ export async function saveDivisionActivity(formData: FormData) {
   const division_id = formData.get('division_id') as string
   const activity_type = formData.get('activity_type') as string
   const venue = (formData.get('venue') as string) || null
-  const opponent_club_id = (formData.get('opponent_club_id') as string) || null
+  // Support multiple opponent clubs — getAll returns all values with the same key
+  const opponent_club_ids = formData.getAll('opponent_club_id').filter(Boolean) as string[]
+  const opponent_club_id = opponent_club_ids[0] ?? null  // first club kept for backwards compat
   const location_club_id = (formData.get('location_club_id') as string) || null
   const location_notes = (formData.get('location_notes') as string)?.trim() || null
   const bus_id = (formData.get('bus_id') as string) || null
@@ -103,6 +105,7 @@ export async function saveDivisionActivity(formData: FormData) {
     activity_type,
     venue: activity_type === 'partido' ? venue : null,
     opponent_club_id: activity_type === 'partido' ? opponent_club_id : null,
+    opponent_club_ids: activity_type === 'partido' ? opponent_club_ids : [],
     location_club_id: activity_type === 'partido' && venue === 'visitante' ? location_club_id : null,
     location_notes,
     bus_id,
