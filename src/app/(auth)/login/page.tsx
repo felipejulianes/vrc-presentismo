@@ -20,7 +20,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-screen flex items-end justify-center">
+    <div className="relative min-h-screen flex flex-col">
 
       {/* Foto de fondo */}
       <Image
@@ -31,26 +31,28 @@ export default function LoginPage() {
         priority
       />
 
-      {/* Overlay verde oscuro degradado */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
+      {/* Overlay: arriba casi nada, abajo oscuro */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/50 to-black/90" />
 
-      {/* Contenido */}
-      <div className="relative w-full max-w-sm px-5 pb-10 flex flex-col items-center">
+      {/* Logo arriba — sobre la parte más clara de la foto */}
+      <div className="relative flex flex-col items-center pt-16 pb-4">
+        <Image
+          src="/logo.png"
+          alt="Virreyes Rugby Club"
+          width={200}
+          height={200}
+          className="object-contain brightness-0 invert drop-shadow-lg"
+          style={{ height: '110px', width: 'auto' }}
+          priority
+        />
+        <p className="text-white/80 text-sm mt-2 tracking-wide drop-shadow">Sistema de Presentismo</p>
+      </div>
 
-        {/* Logo */}
-        <div className="mb-6 flex flex-col items-center">
-          <Image
-            src="/logo.png"
-            alt="Virreyes Rugby Club"
-            width={160}
-            height={120}
-            className="object-contain drop-shadow-lg"
-            priority
-          />
-          <p className="text-white/80 text-sm mt-2 tracking-wide">Sistema de Presentismo</p>
-        </div>
+      {/* Spacer */}
+      <div className="flex-1" />
 
-        {/* Form */}
+      {/* Form abajo */}
+      <div className="relative w-full max-w-sm mx-auto px-5 pb-10">
         <form onSubmit={handleSubmit} className="w-full bg-white/95 backdrop-blur rounded-2xl shadow-xl p-6 space-y-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">

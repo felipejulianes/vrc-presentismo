@@ -16,14 +16,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Top bar */}
-      <header className="sticky top-0 z-40 bg-vrc-green text-white px-4 py-2 flex items-center justify-between shadow">
-        <div className="flex items-center gap-2">
+      <header className="sticky top-0 z-40 bg-vrc-green text-white px-4 py-0 flex items-center justify-between shadow" style={{ height: '44px' }}>
+        {/*
+          El PNG tiene bastante espacio en blanco alrededor del logo.
+          Rendizamos la imagen más grande y recortamos con overflow-hidden
+          para mostrar solo la zona del isotipo (pelota + cintas), sin el texto ni los márgenes.
+        */}
+        <div className="overflow-hidden flex-shrink-0" style={{ height: '44px', width: '56px' }}>
           <Image
             src="/logo.png"
             alt="Virreyes Rugby Club"
-            height={36}
-            width={120}
-            className="object-contain brightness-0 invert"
+            width={300}
+            height={300}
+            className="brightness-0 invert"
+            style={{ height: '130px', width: 'auto', marginTop: '-22px', marginLeft: '-4px' }}
             priority
           />
         </div>
