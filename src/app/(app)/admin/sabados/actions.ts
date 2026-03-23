@@ -10,11 +10,36 @@ export async function addOpponentClub(name: string) {
   const { data, error } = await supabase
     .from('opponent_clubs')
     .insert({ name: name.trim() })
-    .select('id, name')
+    .select('id, name, active')
     .single()
   if (error) return { error: error.message }
   revalidatePath('/admin/sabados')
+  revalidatePath('/admin/clubs')
   return { club: data }
+}
+
+export async function renameClub(id: string, name: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('opponent_clubs')
+    .update({ name: name.trim() })
+    .eq('id', id)
+  if (error) return { error: error.message }
+  revalidatePath('/admin/clubs')
+  revalidatePath('/admin/sabados')
+  return { success: true }
+}
+
+export async function toggleClubActive(id: string, active: boolean) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('opponent_clubs')
+    .update({ active })
+    .eq('id', id)
+  if (error) return { error: error.message }
+  revalidatePath('/admin/clubs')
+  revalidatePath('/admin/sabados')
+  return { success: true }
 }
 
 // ── Bondis ───────────────────────────────────────────────────
@@ -122,9 +147,6 @@ export async function saveTercerTiempo(formData: FormData) {
   const division_id = formData.get('division_id') as string
   const local_kids_count = formData.get('local_kids_count')
   const local_coaches_count = formData.get('local_coaches_count')
-  const visitor_club_id = (formData.get('visitor_club_id') as string) || null
-  const visitor_kids_count = formData.get('visitor_kids_count')
-  const visitor_coaches_count = formData.get('visitor_coaches_count')
   const notes = (formData.get('notes') as string)?.trim() || null
 
   if (!activity_date || !division_id) return { error: 'Faltan datos' }
@@ -144,9 +166,6 @@ export async function saveTercerTiempo(formData: FormData) {
       division_id,
       local_kids_count: toInt(local_kids_count),
       local_coaches_count: toInt(local_coaches_count),
-      visitor_club_id,
-      visitor_kids_count: toInt(visitor_kids_count),
-      visitor_coaches_count: toInt(visitor_coaches_count),
       notes,
       reported_by: user?.id,
       updated_at: new Date().toISOString(),
@@ -154,7 +173,39 @@ export async function saveTercerTiempo(formData: FormData) {
 
   if (error) return { error: error.message }
   revalidatePath(`/admin/sabados/${activity_date}`)
-  // also revalidate attendance session page
+  revalidatePath('/attendance')
+  return { success: true }
+}
+
+// visitors is a JSON string: [{club_id, kids_count, coaches_count}]
+export async function saveTercerTiempoVisitors(
+  activity_date: string,
+  division_id: string,
+  visitors: { club_id: string; kids_count: number | null; coaches_count: number | null }[]
+) {
+  if (!activity_date || !division_id) return { error: 'Faltan datos' }
+
+  const supabase = await createClient()
+
+  // Delete existing visitors for this division/date, then re-insert
+  const { error: delErr } = await supabase
+    .from('tercer_tiempo_visitors')
+    .delete()
+    .eq('activity_date', activity_date)
+    .eq('division_id', division_id)
+
+  if (delErr) return { error: delErr.message }
+
+  const rows = visitors
+    .filter(v => v.club_id)
+    .map(v => ({ activity_date, division_id, club_id: v.club_id, kids_count: v.kids_count, coaches_count: v.coaches_count }))
+
+  if (rows.length > 0) {
+    const { error: insErr } = await supabase.from('tercer_tiempo_visitors').insert(rows)
+    if (insErr) return { error: insErr.message }
+  }
+
+  revalidatePath(`/admin/sabados/${activity_date}`)
   revalidatePath('/attendance')
   return { success: true }
 }

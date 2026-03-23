@@ -1,15 +1,22 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { saveTercerTiempo } from '@/app/(app)/admin/sabados/actions'
-import type { DivisionActivity, TercerTiempoReport, OpponentClub } from '@/lib/queries/sabados'
+import { saveTercerTiempo, saveTercerTiempoVisitors } from '@/app/(app)/admin/sabados/actions'
+import type { DivisionActivity, TercerTiempoReport, TercerTiempoVisitor, OpponentClub } from '@/lib/queries/sabados'
+
+interface VisitorEntry {
+  club_id: string
+  kids: string
+  coaches: string
+}
 
 interface Props {
   date: string
   divisionId: string
   divisionName: string
-  activity: DivisionActivity | null
+  activity: DivisionActivity
   existingReport: TercerTiempoReport | null
+  existingVisitors: TercerTiempoVisitor[]
   attendanceCount: number
   clubs: OpponentClub[]
 }
@@ -20,30 +27,75 @@ export function TercerTiempoCard({
   divisionName,
   activity,
   existingReport,
+  existingVisitors,
   attendanceCount,
   clubs,
 }: Props) {
-  const isPartido = activity?.activity_type === 'partido'
+  // Only for home games
+  if (activity.activity_type !== 'partido' || activity.venue !== 'local') return null
 
+  return (
+    <TercerTiempoCardInner
+      date={date}
+      divisionId={divisionId}
+      divisionName={divisionName}
+      activity={activity}
+      existingReport={existingReport}
+      existingVisitors={existingVisitors}
+      attendanceCount={attendanceCount}
+      clubs={clubs}
+    />
+  )
+}
+
+function TercerTiempoCardInner({
+  date,
+  divisionId,
+  divisionName,
+  activity,
+  existingReport,
+  existingVisitors,
+  attendanceCount,
+  clubs,
+}: Props) {
   const [localKids, setLocalKids] = useState(
     existingReport?.local_kids_count?.toString() ?? attendanceCount.toString()
   )
   const [localCoaches, setLocalCoaches] = useState(
     existingReport?.local_coaches_count?.toString() ?? ''
   )
-  const [visitorClubId, setVisitorClubId] = useState(
-    existingReport?.visitor_club_id ?? activity?.opponent_club_id ?? ''
-  )
-  const [visitorKids, setVisitorKids] = useState(
-    existingReport?.visitor_kids_count?.toString() ?? ''
-  )
-  const [visitorCoaches, setVisitorCoaches] = useState(
-    existingReport?.visitor_coaches_count?.toString() ?? ''
-  )
   const [notes, setNotes] = useState(existingReport?.notes ?? '')
+
+  const [visitors, setVisitors] = useState<VisitorEntry[]>(() => {
+    if (existingVisitors.length > 0) {
+      return existingVisitors.map(v => ({
+        club_id: v.club_id ?? '',
+        kids: v.kids_count?.toString() ?? '',
+        coaches: v.coaches_count?.toString() ?? '',
+      }))
+    }
+    // Pre-fill opponent club if configured
+    if (activity.opponent_club_id) {
+      return [{ club_id: activity.opponent_club_id, kids: '', coaches: '' }]
+    }
+    return [{ club_id: '', kids: '', coaches: '' }]
+  })
+
   const [saved, setSaved] = useState(!!existingReport)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  function addVisitor() {
+    setVisitors(prev => [...prev, { club_id: '', kids: '', coaches: '' }])
+  }
+
+  function removeVisitor(idx: number) {
+    setVisitors(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  function updateVisitor(idx: number, field: keyof VisitorEntry, value: string) {
+    setVisitors(prev => prev.map((v, i) => i === idx ? { ...v, [field]: value } : v))
+  }
 
   function handleSave() {
     setError(null)
@@ -52,17 +104,24 @@ export function TercerTiempoCard({
     fd.append('division_id', divisionId)
     fd.append('local_kids_count', localKids)
     fd.append('local_coaches_count', localCoaches)
-    if (isPartido && visitorClubId) fd.append('visitor_club_id', visitorClubId)
-    if (isPartido) {
-      fd.append('visitor_kids_count', visitorKids)
-      fd.append('visitor_coaches_count', visitorCoaches)
-    }
     if (notes) fd.append('notes', notes)
 
+    const visitorPayload = visitors
+      .filter(v => v.club_id)
+      .map(v => ({
+        club_id: v.club_id,
+        kids_count: v.kids !== '' ? parseInt(v.kids) : null,
+        coaches_count: v.coaches !== '' ? parseInt(v.coaches) : null,
+      }))
+
     startTransition(async () => {
-      const res = await saveTercerTiempo(fd)
-      if (res.error) {
-        setError(res.error)
+      const [r1, r2] = await Promise.all([
+        saveTercerTiempo(fd),
+        saveTercerTiempoVisitors(date, divisionId, visitorPayload),
+      ])
+      const err = r1.error ?? r2.error
+      if (err) {
+        setError(err)
       } else {
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
@@ -77,31 +136,15 @@ export function TercerTiempoCard({
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tercer tiempo</p>
           <div className="flex items-center gap-2 mt-0.5">
-            {activity ? (
-              <>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isPartido ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
-                  {isPartido ? 'Partido' : 'Entrenamiento'}
-                </span>
-                {isPartido && activity.opponent_club_name && (
-                  <span className="text-xs text-gray-600">vs {activity.opponent_club_name}</span>
-                )}
-                {isPartido && activity.venue && (
-                  <span className={`text-xs font-medium ${activity.venue === 'local' ? 'text-green-600' : 'text-orange-600'}`}>
-                    ({activity.venue})
-                  </span>
-                )}
-                {activity.bus_label && (
-                  <span className="text-xs text-gray-400">· {activity.bus_label}</span>
-                )}
-              </>
-            ) : (
-              <span className="text-xs text-gray-400">Sin actividad definida</span>
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Partido local</span>
+            {activity.opponent_club_name && (
+              <span className="text-xs text-gray-600">vs {activity.opponent_club_name}</span>
+            )}
+            {activity.bus_label && (
+              <span className="text-xs text-gray-400">· {activity.bus_label}</span>
             )}
           </div>
-          {activity?.location_notes && (
-            <p className="text-xs text-gray-400 mt-0.5">{activity.location_notes}</p>
-          )}
-          {activity?.bus_driver_phone && (
+          {activity.bus_driver_phone && (
             <p className="text-xs text-gray-500 mt-0.5">
               Chofer:{' '}
               <a href={`tel:${activity.bus_driver_phone}`} className="text-blue-600 font-medium">
@@ -114,15 +157,12 @@ export function TercerTiempoCard({
         <div className="px-4 py-3 space-y-3">
           {/* Local side */}
           <div>
-            <p className="text-xs font-semibold text-gray-600 mb-2">
-              {divisionName} {isPartido && activity?.venue ? `(${activity.venue})` : ''}
-            </p>
+            <p className="text-xs font-semibold text-gray-600 mb-2">{divisionName} (local)</p>
             <div className="flex gap-3">
               <div className="flex-1">
                 <label className="block text-xs text-gray-500 mb-1">Chicos</label>
                 <input
-                  type="number"
-                  min={0}
+                  type="number" min={0}
                   value={localKids}
                   onChange={e => setLocalKids(e.target.value)}
                   placeholder={`${attendanceCount} (lista)`}
@@ -132,8 +172,7 @@ export function TercerTiempoCard({
               <div className="flex-1">
                 <label className="block text-xs text-gray-500 mb-1">Entrenadores</label>
                 <input
-                  type="number"
-                  min={0}
+                  type="number" min={0}
                   value={localCoaches}
                   onChange={e => setLocalCoaches(e.target.value)}
                   placeholder="0"
@@ -143,51 +182,64 @@ export function TercerTiempoCard({
             </div>
           </div>
 
-          {/* Visitor side (only for partido) */}
-          {isPartido && (
-            <div className="border-t border-gray-100 pt-3">
-              <p className="text-xs font-semibold text-gray-600 mb-2">
-                Visitante {activity?.venue === 'local' ? '' : '(nosotros)'}
-              </p>
-              <div className="mb-2">
-                <label className="block text-xs text-gray-500 mb-1">Club rival</label>
-                <select
-                  value={visitorClubId}
-                  onChange={e => setVisitorClubId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-vrc-green"
-                >
-                  <option value="">Sin especificar</option>
-                  {clubs.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="block text-xs text-gray-500 mb-1">Chicos</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={visitorKids}
-                    onChange={e => setVisitorKids(e.target.value)}
-                    placeholder="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-vrc-green"
-                  />
+          {/* Visitor clubs */}
+          <div className="border-t border-gray-100 pt-3 space-y-3">
+            <p className="text-xs font-semibold text-gray-600">Clubes visitantes</p>
+            {visitors.map((v, idx) => (
+              <div key={idx} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <select
+                    value={v.club_id}
+                    onChange={e => updateVisitor(idx, 'club_id', e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-vrc-green"
+                  >
+                    <option value="">Sin especificar</option>
+                    {clubs.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  {visitors.length > 1 && (
+                    <button
+                      onClick={() => removeVisitor(idx)}
+                      className="p-1.5 text-red-400 hover:text-red-600"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
-                <div className="flex-1">
-                  <label className="block text-xs text-gray-500 mb-1">Entrenadores</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={visitorCoaches}
-                    onChange={e => setVisitorCoaches(e.target.value)}
-                    placeholder="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-vrc-green"
-                  />
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1">Chicos</label>
+                    <input
+                      type="number" min={0}
+                      value={v.kids}
+                      onChange={e => updateVisitor(idx, 'kids', e.target.value)}
+                      placeholder="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-vrc-green"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1">Entrenadores</label>
+                    <input
+                      type="number" min={0}
+                      value={v.coaches}
+                      onChange={e => updateVisitor(idx, 'coaches', e.target.value)}
+                      placeholder="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-vrc-green"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            ))}
+            <button
+              onClick={addVisitor}
+              className="text-xs text-vrc-green font-semibold hover:underline"
+            >
+              + Agregar otro club visitante
+            </button>
+          </div>
 
           {/* Notes */}
           <div>

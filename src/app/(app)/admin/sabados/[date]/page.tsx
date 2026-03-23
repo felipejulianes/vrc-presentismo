@@ -6,6 +6,7 @@ import {
   getBusesForDate,
   getOpponentClubs,
   getTercerTiempoForDate,
+  getTercerTiempoVisitorsForDate,
 } from '@/lib/queries/sabados'
 import { SabadoSetupGrid } from '@/components/admin/SabadoSetupGrid'
 import { BusesManager } from '@/components/admin/BusesManager'
@@ -36,7 +37,7 @@ export default async function SabadoDatePage({ params }: PageProps) {
 
   const supabase = await createClient()
 
-  const [divisions, activities, buses, clubs, reports] = await Promise.all([
+  const [divisions, activities, buses, clubs, reports, visitors] = await Promise.all([
     supabase
       .from('divisions')
       .select('id, name, sort_order')
@@ -46,6 +47,7 @@ export default async function SabadoDatePage({ params }: PageProps) {
     getBusesForDate(date),
     getOpponentClubs(),
     getTercerTiempoForDate(date),
+    getTercerTiempoVisitorsForDate(date),
   ])
 
   return (
@@ -93,6 +95,7 @@ export default async function SabadoDatePage({ params }: PageProps) {
           divisions={divisions.map(d => ({ id: d.id, name: d.name }))}
           activities={activities}
           reports={reports}
+          visitors={visitors}
           clubs={clubs}
         />
       </div>

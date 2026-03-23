@@ -35,11 +35,17 @@ export type TercerTiempoReport = {
   division_id: string
   local_kids_count: number | null
   local_coaches_count: number | null
-  visitor_club_id: string | null
-  visitor_club_name: string | null
-  visitor_kids_count: number | null
-  visitor_coaches_count: number | null
   notes: string | null
+}
+
+export type TercerTiempoVisitor = {
+  id: string
+  activity_date: string
+  division_id: string
+  club_id: string | null
+  club_name: string | null
+  kids_count: number | null
+  coaches_count: number | null
 }
 
 export async function getOpponentClubs(): Promise<OpponentClub[]> {
@@ -48,6 +54,15 @@ export async function getOpponentClubs(): Promise<OpponentClub[]> {
     .from('opponent_clubs')
     .select('id, name, active')
     .eq('active', true)
+    .order('name')
+  return data ?? []
+}
+
+export async function getAllOpponentClubs(): Promise<OpponentClub[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('opponent_clubs')
+    .select('id, name, active')
     .order('name')
   return data ?? []
 }
@@ -112,12 +127,7 @@ export async function getTercerTiempoForDate(date: string): Promise<TercerTiempo
   const supabase = await createClient()
   const { data } = await supabase
     .from('tercer_tiempo_reports')
-    .select(`
-      id, activity_date, division_id,
-      local_kids_count, local_coaches_count,
-      visitor_club_id, visitor_kids_count, visitor_coaches_count,
-      notes, opponent_clubs(name)
-    `)
+    .select('id, activity_date, division_id, local_kids_count, local_coaches_count, notes')
     .eq('activity_date', date)
 
   return (data ?? []).map((r: Record<string, unknown>) => ({
@@ -126,12 +136,6 @@ export async function getTercerTiempoForDate(date: string): Promise<TercerTiempo
     division_id: r.division_id as string,
     local_kids_count: r.local_kids_count as number | null,
     local_coaches_count: r.local_coaches_count as number | null,
-    visitor_club_id: r.visitor_club_id as string | null,
-    visitor_club_name: Array.isArray(r.opponent_clubs)
-      ? (r.opponent_clubs[0]?.name ?? null)
-      : ((r.opponent_clubs as Record<string, string> | null)?.name ?? null),
-    visitor_kids_count: r.visitor_kids_count as number | null,
-    visitor_coaches_count: r.visitor_coaches_count as number | null,
     notes: r.notes as string | null,
   }))
 }
@@ -142,6 +146,34 @@ export async function getTercerTiempoForDivisionDate(
 ): Promise<TercerTiempoReport | null> {
   const reports = await getTercerTiempoForDate(date)
   return reports.find(r => r.division_id === divisionId) ?? null
+}
+
+export async function getTercerTiempoVisitorsForDate(date: string): Promise<TercerTiempoVisitor[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('tercer_tiempo_visitors')
+    .select('id, activity_date, division_id, club_id, kids_count, coaches_count, opponent_clubs(name)')
+    .eq('activity_date', date)
+
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    id: r.id as string,
+    activity_date: r.activity_date as string,
+    division_id: r.division_id as string,
+    club_id: r.club_id as string | null,
+    club_name: Array.isArray(r.opponent_clubs)
+      ? (r.opponent_clubs[0]?.name ?? null)
+      : ((r.opponent_clubs as Record<string, string> | null)?.name ?? null),
+    kids_count: r.kids_count as number | null,
+    coaches_count: r.coaches_count as number | null,
+  }))
+}
+
+export async function getTercerTiempoVisitorsForDivisionDate(
+  divisionId: string,
+  date: string
+): Promise<TercerTiempoVisitor[]> {
+  const visitors = await getTercerTiempoVisitorsForDate(date)
+  return visitors.filter(v => v.division_id === divisionId)
 }
 
 // Returns last N configured event dates (dates with at least one division_activity)

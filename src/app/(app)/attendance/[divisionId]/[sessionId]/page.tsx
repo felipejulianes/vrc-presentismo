@@ -5,6 +5,7 @@ import { getSessionById } from '@/lib/queries/attendance'
 import {
   getActivityForDivisionDate,
   getTercerTiempoForDivisionDate,
+  getTercerTiempoVisitorsForDivisionDate,
   getOpponentClubs,
 } from '@/lib/queries/sabados'
 import { AttendanceGrid } from '@/components/attendance/AttendanceGrid'
@@ -40,9 +41,10 @@ export default async function SessionPage({ params }: PageProps) {
 
   const attendanceCount = Object.values(initialAttendance).filter(Boolean).length
 
-  const [activity, existingReport, clubs] = await Promise.all([
+  const [activity, existingReport, existingVisitors, clubs] = await Promise.all([
     getActivityForDivisionDate(divisionId, sessionData.date).catch(() => null),
     getTercerTiempoForDivisionDate(divisionId, sessionData.date).catch(() => null),
+    getTercerTiempoVisitorsForDivisionDate(divisionId, sessionData.date).catch(() => []),
     getOpponentClubs().catch(() => []),
   ])
 
@@ -94,14 +96,15 @@ export default async function SessionPage({ params }: PageProps) {
         backUrl={`/attendance/${divisionId}`}
       />
 
-      {/* Tercer tiempo — shown after attendance when an activity exists */}
-      {activity && (
+      {/* Tercer tiempo — only for home games */}
+      {activity && activity.venue === 'local' && (
         <TercerTiempoCard
           date={sessionData.date}
           divisionId={divisionId}
           divisionName={division.name}
           activity={activity}
           existingReport={existingReport}
+          existingVisitors={existingVisitors}
           attendanceCount={attendanceCount}
           clubs={clubs}
         />
