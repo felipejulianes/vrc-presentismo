@@ -42,6 +42,25 @@ export default async function AdminPage() {
         </div>
       </div>
 
+      {/* Hoy */}
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Asistencia</h2>
+        <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
+          <Link href="/admin/hoy" className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 active:bg-gray-100">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">📋</span>
+              <div>
+                <p className="text-sm font-medium text-gray-900">Vista del día</p>
+                <p className="text-xs text-gray-400">Asistencia de hoy en todas las divisiones</p>
+              </div>
+            </div>
+            <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
+      </div>
+
       {/* Accesos rápidos */}
       <div className="space-y-2">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Gestión</h2>
