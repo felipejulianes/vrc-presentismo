@@ -20,7 +20,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col">
+    <div className="relative min-h-screen flex flex-col justify-between py-10">
 
       {/* Foto de fondo */}
       <Image
@@ -34,25 +34,22 @@ export default function LoginPage() {
       {/* Overlay: arriba casi nada, abajo oscuro */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/50 to-black/90" />
 
-      {/* Logo arriba — sobre la parte más clara de la foto */}
-      <div className="relative flex flex-col items-center pt-16 pb-4">
+      {/* Logo arriba */}
+      <div className="relative flex flex-col items-center">
         <Image
           src="/logo.png"
           alt="Virreyes Rugby Club"
           width={280}
           height={280}
           className="object-contain drop-shadow-lg"
-          style={{ height: '130px', width: 'auto' }}
+          style={{ height: '110px', width: 'auto' }}
           priority
         />
-        <p className="text-white/80 text-sm mt-2 tracking-wide drop-shadow">Sistema de Presentismo</p>
+        <p className="text-white/80 text-sm mt-1 tracking-wide drop-shadow">Sistema de Presentismo</p>
       </div>
 
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Form abajo */}
-      <div className="relative w-full max-w-sm mx-auto px-5 pb-10">
+      {/* Form — siempre visible sin scrollear */}
+      <div className="relative w-full max-w-sm mx-auto px-5">
         <form onSubmit={handleSubmit} className="w-full bg-white/95 backdrop-blur rounded-2xl shadow-xl p-6 space-y-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
@@ -101,6 +98,7 @@ export default function LoginPage() {
           </button>
         </form>
       </div>
+
     </div>
   )
 }
