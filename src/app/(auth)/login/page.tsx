@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Image from 'next/image'
 import { login } from './actions'
 
 export default function LoginPage() {
@@ -19,19 +20,38 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm">
-        {/* Logo / Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-700 text-white text-2xl font-bold mb-4">
-            VRC
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Virreyes Rugby Club</h1>
-          <p className="text-gray-500 text-sm mt-1">Sistema de Presentismo</p>
+    <div className="relative min-h-screen flex items-end justify-center">
+
+      {/* Foto de fondo */}
+      <Image
+        src="/foto-infantiles.jpg"
+        alt="Virreyes Rugby Club"
+        fill
+        className="object-cover object-top"
+        priority
+      />
+
+      {/* Overlay verde oscuro degradado */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
+
+      {/* Contenido */}
+      <div className="relative w-full max-w-sm px-5 pb-10 flex flex-col items-center">
+
+        {/* Logo */}
+        <div className="mb-6 flex flex-col items-center">
+          <Image
+            src="/logo.png"
+            alt="Virreyes Rugby Club"
+            width={160}
+            height={120}
+            className="object-contain drop-shadow-lg"
+            priority
+          />
+          <p className="text-white/80 text-sm mt-2 tracking-wide">Sistema de Presentismo</p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="w-full bg-white/95 backdrop-blur rounded-2xl shadow-xl p-6 space-y-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
               Email
@@ -42,7 +62,7 @@ export default function LoginPage() {
               type="email"
               required
               autoComplete="email"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-vrc-green focus:border-transparent"
               placeholder="entrenador@vrc.com"
             />
           </div>
@@ -57,7 +77,7 @@ export default function LoginPage() {
               type="password"
               required
               autoComplete="current-password"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-vrc-green focus:border-transparent"
               placeholder="••••••••"
             />
           </div>
@@ -73,7 +93,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isPending}
-            className="w-full py-2.5 px-4 bg-green-700 hover:bg-green-800 disabled:bg-green-400 text-white font-medium rounded-lg text-sm transition-colors"
+            className="w-full py-2.5 px-4 bg-vrc-green hover:bg-green-800 disabled:bg-green-400 text-white font-semibold rounded-lg text-sm transition-colors"
           >
             {isPending ? 'Ingresando...' : 'Ingresar'}
           </button>

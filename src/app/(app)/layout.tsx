@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { logout } from '@/app/(auth)/login/actions'
 import { createClient } from '@/lib/supabase/server'
 import { BottomNav } from '@/components/layout/BottomNav'
@@ -15,17 +16,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Top bar */}
-      <header className="sticky top-0 z-40 bg-green-700 text-white px-4 py-3 flex items-center justify-between shadow">
+      <header className="sticky top-0 z-40 bg-vrc-green text-white px-4 py-2 flex items-center justify-between shadow">
         <div className="flex items-center gap-2">
-          <span className="font-bold text-lg tracking-tight">VRC</span>
-          <span className="text-green-200 text-sm hidden sm:block">Presentismo</span>
+          <Image
+            src="/logo.png"
+            alt="Virreyes Rugby Club"
+            height={36}
+            width={120}
+            className="object-contain brightness-0 invert"
+            priority
+          />
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-green-100 hidden sm:block">{profile?.full_name}</span>
           {profile?.role === 'admin' && (
             <Link
               href="/admin"
-              className="text-xs bg-green-600 hover:bg-green-500 px-2 py-1 rounded"
+              className="text-xs bg-black/20 hover:bg-black/30 px-2 py-1 rounded"
             >
               Admin
             </Link>

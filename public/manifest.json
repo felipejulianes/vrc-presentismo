@@ -1,11 +1,11 @@
 {
-  "name": "VRC Presentismo",
+  "name": "Virreyes Rugby Club",
   "short_name": "VRC",
-  "description": "Sistema de presentismo — Virreyes Rugby Club",
+  "description": "Sistema de Presentismo — Virreyes Rugby Club",
   "start_url": "/attendance",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#15803d",
+  "theme_color": "#2b7a2b",
   "orientation": "portrait",
   "icons": [
     {
