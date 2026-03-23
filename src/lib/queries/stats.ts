@@ -59,6 +59,55 @@ export async function getStatsByYear(
   return (data ?? []).map(mapStat)
 }
 
+export type SessionTrend = {
+  session_date: string
+  present_count: number
+  total_count: number
+  attendance_pct: number | null
+}
+
+export async function getSessionTrend(
+  divisionId: string,
+  limit = 20
+): Promise<SessionTrend[]> {
+  const supabase = await createClient()
+
+  const { data: sessions } = await supabase
+    .from('training_sessions')
+    .select('id, session_date')
+    .eq('division_id', divisionId)
+    .order('session_date', { ascending: false })
+    .limit(limit)
+
+  if (!sessions || sessions.length === 0) return []
+
+  const sessionIds = sessions.map(s => s.id)
+
+  const { data: records } = await supabase
+    .from('attendance_records')
+    .select('session_id, present')
+    .in('session_id', sessionIds)
+
+  const countMap: Record<string, { present: number; total: number }> = {}
+  for (const s of sessions) countMap[s.id] = { present: 0, total: 0 }
+  for (const r of records ?? []) {
+    if (countMap[r.session_id]) {
+      countMap[r.session_id].total++
+      if (r.present) countMap[r.session_id].present++
+    }
+  }
+
+  return sessions.map(s => {
+    const { present, total } = countMap[s.id]
+    return {
+      session_date: s.session_date,
+      present_count: present,
+      total_count: total,
+      attendance_pct: total > 0 ? Math.round((present / total) * 100) : null,
+    }
+  })
+}
+
 export async function getStatsSinceAlta(
   divisionId: string
 ): Promise<PlayerStat[]> {

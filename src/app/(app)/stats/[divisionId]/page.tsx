@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getStatsByYear, getStatsByDays, getStatsSinceAlta } from '@/lib/queries/stats'
+import { getStatsByYear, getStatsByDays, getStatsSinceAlta, getSessionTrend } from '@/lib/queries/stats'
 import { StatsView } from '@/components/stats/StatsView'
 
 interface PageProps {
@@ -21,18 +21,21 @@ export default async function StatsDivisionPage({ params }: PageProps) {
 
   const currentYear = new Date().getFullYear()
 
-  const [statsByYear, statsByDays, statsSinceAlta] = await Promise.all([
+  const [statsByYear, statsByDays, statsSinceAlta, sessionTrend] = await Promise.all([
     getStatsByYear(divisionId, currentYear),
     getStatsByDays(divisionId, 60),
     getStatsSinceAlta(divisionId),
+    getSessionTrend(divisionId, 20),
   ])
 
   return (
     <StatsView
       divisionName={division.name}
+      divisionId={divisionId}
       statsByYear={statsByYear}
       statsByDays={statsByDays}
       statsSinceAlta={statsSinceAlta}
+      sessionTrend={sessionTrend}
       currentYear={currentYear}
     />
   )
