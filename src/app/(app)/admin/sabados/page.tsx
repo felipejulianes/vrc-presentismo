@@ -1,25 +1,35 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { getConfiguredEventDates } from '@/lib/queries/sabados'
-import { HoyDatePicker } from '@/components/admin/HoyDatePicker'
-
-function getUpcomingSaturdays(count = 6): string[] {
-  const dates: string[] = []
-  const today = new Date()
-  const dayOfWeek = today.getDay()
-  const daysUntilSat = dayOfWeek === 6 ? 0 : (6 - dayOfWeek)
-  const nextSat = new Date(today)
-  nextSat.setDate(today.getDate() + daysUntilSat)
-  for (let i = 0; i < count; i++) {
-    const d = new Date(nextSat)
-    d.setDate(nextSat.getDate() + 7 * i)
-    dates.push(toISO(d))
-  }
-  return dates
-}
 
 function toISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** All Saturdays from today (or nearest past Saturday) through end of November */
+function getSaturdaysUntilNovember(): string[] {
+  const dates: string[] = []
+  const today = new Date()
+  const year = today.getFullYear()
+
+  // Start from last Saturday (or today if Saturday)
+  const dayOfWeek = today.getDay()
+  const daysToLastSat = dayOfWeek === 6 ? 0 : (dayOfWeek + 1) % 7
+  const start = new Date(today)
+  start.setDate(today.getDate() - daysToLastSat)
+
+  // End: last Saturday of November of current year
+  const endOfNovember = new Date(year, 11, 0) // Nov 30
+  const endDow = endOfNovember.getDay()
+  const endOffset = endDow === 6 ? 0 : endDow + 1
+  const end = new Date(endOfNovember)
+  end.setDate(endOfNovember.getDate() - endOffset)
+
+  const cur = new Date(start)
+  while (cur <= end) {
+    dates.push(toISO(cur))
+    cur.setDate(cur.getDate() + 7)
+  }
+  return dates
 }
 
 function formatDate(dateStr: string): string {
@@ -32,31 +42,21 @@ export default async function SabadosPage() {
   const supabase = await createClient()
   const todayISO = toISO(new Date())
 
-  const [configuredDates, { data: activityCounts }] = await Promise.all([
-    getConfiguredEventDates(12),
-    supabase
-      .from('division_activities')
-      .select('activity_date')
-      .gte('activity_date', '2020-01-01'),
-  ])
+  const { data: activityRows } = await supabase
+    .from('division_activities')
+    .select('activity_date')
 
-  // Count per date
+  // Count configured divisions per date
   const countMap: Record<string, number> = {}
-  for (const r of activityCounts ?? []) {
+  for (const r of activityRows ?? []) {
     countMap[r.activity_date] = (countMap[r.activity_date] ?? 0) + 1
   }
 
-  const upcomingSaturdays = getUpcomingSaturdays(6)
-  // Merge: upcoming + configured (not already in upcoming)
-  const allDates = [
-    ...upcomingSaturdays,
-    ...configuredDates.filter(d => !upcomingSaturdays.includes(d)),
-  ]
-  const seen = new Set<string>()
-  const uniqueSorted = allDates
-    .filter(d => { if (seen.has(d)) return false; seen.add(d); return true })
-    .sort()
-    .reverse()
+  const saturdays = getSaturdaysUntilNovember()
+
+  // Also include any configured dates not in our Saturday list
+  const extraDates = Object.keys(countMap).filter(d => !saturdays.includes(d))
+  const allDates = [...saturdays, ...extraDates].sort()
 
   return (
     <div className="pb-6">
@@ -66,30 +66,18 @@ export default async function SabadosPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
-        <div className="flex-1">
+        <div>
           <h1 className="text-xl font-bold text-gray-900">Actividades</h1>
-          <p className="text-sm text-gray-500">Partidos y entrenamientos</p>
+          <p className="text-sm text-gray-500">Partidos y entrenamientos del año</p>
         </div>
       </div>
 
-      {/* Ir a una fecha específica */}
-      <div className="px-4 pb-4">
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-xs font-medium text-gray-500 mb-2">Ir a una fecha</p>
-          <div className="flex gap-2 items-center">
-            <HoyDatePicker value={todayISO} onChangePath="/admin/sabados" />
-          </div>
-        </div>
-      </div>
-
-      {/* Lista de fechas */}
       <div className="px-4">
-        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Próximos y recientes</h2>
         <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
-          {uniqueSorted.map(date => {
+          {allDates.map(date => {
             const count = countMap[date] ?? 0
-            const isToday = date === todayISO
             const isPast = date < todayISO
+            const isToday = date === todayISO
 
             return (
               <Link
@@ -98,15 +86,17 @@ export default async function SabadosPage() {
                 className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100"
               >
                 <div className="flex-1">
-                  <p className={`text-sm font-semibold capitalize ${isPast && !isToday ? 'text-gray-500' : 'text-gray-900'}`}>
+                  <p className={`text-sm font-semibold capitalize ${isPast && !isToday ? 'text-gray-400' : 'text-gray-900'}`}>
                     {formatDate(date)}
-                    {isToday && <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Hoy</span>}
+                    {isToday && (
+                      <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Hoy</span>
+                    )}
                   </p>
-                  <p className="text-xs text-gray-400">
+                  <p className={`text-xs ${count > 0 ? 'text-green-600 font-medium' : isPast ? 'text-gray-300' : 'text-gray-400'}`}>
                     {count > 0 ? `${count} divisiones configuradas` : 'Sin configurar'}
                   </p>
                 </div>
-                <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </Link>

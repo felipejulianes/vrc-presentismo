@@ -2,9 +2,14 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionsForDivision } from '@/lib/queries/attendance'
+import { getActivitiesForDate } from '@/lib/queries/sabados'
 
 interface PageProps {
   params: { divisionId: string }
+}
+
+function toISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function formatDate(dateStr: string): string {
@@ -19,6 +24,7 @@ function formatDate(dateStr: string): string {
 
 export default async function AttendanceDivisionPage({ params }: PageProps) {
   const { divisionId } = params
+  const today = toISO(new Date())
 
   const supabase = await createClient()
   const { data: division } = await supabase
@@ -29,7 +35,37 @@ export default async function AttendanceDivisionPage({ params }: PageProps) {
 
   if (!division) notFound()
 
+  // Sessions ordered ascending so upcoming ones appear at top naturally
   const sessions = await getSessionsForDivision(divisionId)
+  // Sort ascending (nearest first — upcoming at top, past below)
+  const sorted = [...sessions].sort((a, b) =>
+    a.session_date < b.session_date ? 1 : a.session_date > b.session_date ? -1 : 0
+  )
+
+  // Separate upcoming/today from past
+  const upcoming = sorted.filter(s => s.session_date >= today)
+  const past = sorted.filter(s => s.session_date < today)
+
+  // Fetch activities for upcoming session dates to show match info
+  const upcomingDates = upcoming.map(s => s.session_date)
+  const activitiesNested = await Promise.all(
+    upcomingDates.map(d => getActivitiesForDate(d))
+  )
+  const activityByDate: Record<string, string> = {}
+  for (let i = 0; i < upcomingDates.length; i++) {
+    const act = activitiesNested[i].find(a => a.division_id === divisionId)
+    if (act) {
+      if (act.activity_type === 'partido') {
+        const parts = ['⚽ Partido']
+        if (act.opponent_club_name) parts.push(`vs ${act.opponent_club_name}`)
+        if (act.venue) parts.push(act.venue === 'local' ? '· Local' : '· Visitante')
+        if (act.location_club_name) parts.push(`en ${act.location_club_name}`)
+        activityByDate[upcomingDates[i]] = parts.join(' ')
+      } else {
+        activityByDate[upcomingDates[i]] = '🏃 Entrenamiento'
+      }
+    }
+  }
 
   return (
     <div className="flex flex-col min-h-full">
@@ -63,43 +99,101 @@ export default async function AttendanceDivisionPage({ params }: PageProps) {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Tomar Asistencia
+            Nueva
           </Link>
         </div>
       </div>
 
-      {/* Lista de sesiones */}
       {sessions.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center py-16 px-4 text-gray-400">
-          <p className="text-lg mb-1">No hay listas todavía</p>
-          <p className="text-sm">Tocá &quot;Nueva lista&quot; para tomar la primera</p>
+          <p className="text-lg mb-1">No hay sesiones todavía</p>
+          <p className="text-sm">Tocá &quot;Nueva&quot; para crear la primera, o esperá que coordinación configure el evento.</p>
         </div>
       ) : (
         <div className="px-4 pb-4 space-y-2">
-          {sessions.map(session => (
-            <Link
-              key={session.id}
-              href={`/attendance/${divisionId}/${session.id}`}
-              className="flex items-center gap-4 bg-white border border-gray-200 rounded-xl px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 capitalize">
-                  {formatDate(session.session_date)}
-                </p>
-                <p className="text-xs text-gray-400">{session.session_date}</p>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <span className="text-lg font-bold text-green-700">{session.present_count}</span>
-                <span className="text-sm text-gray-400"> / {session.total_count}</span>
-                <p className="text-xs text-gray-400">presentes</p>
-              </div>
-              <svg className="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-          ))}
+          {/* Upcoming / Today */}
+          {upcoming.length > 0 && (
+            <>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Próximas</p>
+              {upcoming.map(session => (
+                <SessionCard
+                  key={session.id}
+                  session={session}
+                  divisionId={divisionId}
+                  activityLabel={activityByDate[session.session_date]}
+                  today={today}
+                />
+              ))}
+            </>
+          )}
+
+          {/* Past */}
+          {past.length > 0 && (
+            <>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-2">Anteriores</p>
+              {past.map(session => (
+                <SessionCard
+                  key={session.id}
+                  session={session}
+                  divisionId={divisionId}
+                  activityLabel={undefined}
+                  today={today}
+                />
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>
+  )
+}
+
+function SessionCard({
+  session,
+  divisionId,
+  activityLabel,
+  today,
+}: {
+  session: { id: string; session_date: string; present_count: number; total_count: number }
+  divisionId: string
+  activityLabel?: string
+  today: string
+}) {
+  const isToday = session.session_date === today
+  const isUpcoming = session.session_date > today
+
+  return (
+    <Link
+      href={`/attendance/${divisionId}/${session.id}`}
+      className={`flex items-center gap-4 bg-white border rounded-xl px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors ${
+        isToday ? 'border-green-400 ring-1 ring-green-300' : 'border-gray-200'
+      }`}
+    >
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-semibold capitalize ${isUpcoming ? 'text-gray-900' : 'text-gray-600'}`}>
+          {formatDate(session.session_date)}
+          {isToday && <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Hoy</span>}
+        </p>
+        {activityLabel ? (
+          <p className="text-xs text-blue-600 font-medium mt-0.5">{activityLabel}</p>
+        ) : (
+          <p className="text-xs text-gray-400">{session.session_date}</p>
+        )}
+      </div>
+      <div className="text-right flex-shrink-0">
+        {session.total_count > 0 ? (
+          <>
+            <span className="text-lg font-bold text-green-700">{session.present_count}</span>
+            <span className="text-sm text-gray-400"> / {session.total_count}</span>
+            <p className="text-xs text-gray-400">presentes</p>
+          </>
+        ) : (
+          <span className="text-xs text-gray-300">Sin lista</span>
+        )}
+      </div>
+      <svg className="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
+    </Link>
   )
 }

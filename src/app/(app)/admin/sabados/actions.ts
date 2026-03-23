@@ -63,6 +63,7 @@ export async function saveDivisionActivity(formData: FormData) {
   const activity_type = formData.get('activity_type') as string
   const venue = (formData.get('venue') as string) || null
   const opponent_club_id = (formData.get('opponent_club_id') as string) || null
+  const location_club_id = (formData.get('location_club_id') as string) || null
   const location_notes = (formData.get('location_notes') as string)?.trim() || null
   const bus_id = (formData.get('bus_id') as string) || null
 
@@ -77,6 +78,7 @@ export async function saveDivisionActivity(formData: FormData) {
     activity_type,
     venue: activity_type === 'partido' ? venue : null,
     opponent_club_id: activity_type === 'partido' ? opponent_club_id : null,
+    location_club_id: activity_type === 'partido' && venue === 'visitante' ? location_club_id : null,
     location_notes,
     bus_id,
     created_by: user?.id,
@@ -87,7 +89,17 @@ export async function saveDivisionActivity(formData: FormData) {
     .upsert(payload, { onConflict: 'activity_date,division_id' })
 
   if (error) return { error: error.message }
+
+  // Auto-create the training session so coaches see it in their list
+  await supabase
+    .from('training_sessions')
+    .upsert(
+      { division_id, session_date: event_date, created_by: user?.id },
+      { onConflict: 'division_id,session_date', ignoreDuplicates: true }
+    )
+
   revalidatePath(`/admin/sabados/${event_date}`)
+  revalidatePath(`/attendance/${division_id}`)
   return { success: true }
 }
 

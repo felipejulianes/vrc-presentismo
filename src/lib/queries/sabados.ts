@@ -21,6 +21,8 @@ export type DivisionActivity = {
   venue: 'local' | 'visitante' | null
   opponent_club_id: string | null
   opponent_club_name: string | null
+  location_club_id: string | null
+  location_club_name: string | null
   location_notes: string | null
   bus_id: string | null
   bus_label: string | null
@@ -56,11 +58,18 @@ export async function getActivitiesForDate(date: string): Promise<DivisionActivi
     .from('division_activities')
     .select(`
       id, activity_date, division_id, activity_type, venue,
-      opponent_club_id, location_notes, bus_id,
-      opponent_clubs(name),
+      opponent_club_id, location_club_id, location_notes, bus_id,
+      opponent_clubs:opponent_club_id(name),
+      location_club:location_club_id(name),
       event_buses(label, driver_phone)
     `)
     .eq('activity_date', date)
+
+  const pickName = (v: unknown): string | null => {
+    if (!v) return null
+    if (Array.isArray(v)) return (v[0] as Record<string, string>)?.name ?? null
+    return (v as Record<string, string>)?.name ?? null
+  }
 
   return (data ?? []).map((r: Record<string, unknown>) => ({
     id: r.id as string,
@@ -69,14 +78,12 @@ export async function getActivitiesForDate(date: string): Promise<DivisionActivi
     activity_type: r.activity_type as 'partido' | 'entrenamiento',
     venue: r.venue as 'local' | 'visitante' | null,
     opponent_club_id: r.opponent_club_id as string | null,
-    opponent_club_name: Array.isArray(r.opponent_clubs)
-      ? (r.opponent_clubs[0]?.name ?? null)
-      : ((r.opponent_clubs as Record<string, string> | null)?.name ?? null),
+    opponent_club_name: pickName(r.opponent_clubs),
+    location_club_id: r.location_club_id as string | null,
+    location_club_name: pickName(r.location_club),
     location_notes: r.location_notes as string | null,
     bus_id: r.bus_id as string | null,
-    bus_label: Array.isArray(r.event_buses)
-      ? (r.event_buses[0]?.label ?? null)
-      : ((r.event_buses as Record<string, string> | null)?.label ?? null),
+    bus_label: pickName(r.event_buses) ?? (Array.isArray(r.event_buses) ? r.event_buses[0]?.label : (r.event_buses as Record<string,string>)?.label) ?? null,
     bus_driver_phone: Array.isArray(r.event_buses)
       ? (r.event_buses[0]?.driver_phone ?? null)
       : ((r.event_buses as Record<string, string> | null)?.driver_phone ?? null),
