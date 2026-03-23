@@ -20,7 +20,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between py-10">
+    <div className="relative h-screen overflow-hidden flex flex-col justify-between py-8">
 
       {/* Foto de fondo */}
       <Image
@@ -42,19 +42,17 @@ export default function LoginPage() {
           width={280}
           height={280}
           className="object-contain drop-shadow-lg"
-          style={{ height: '110px', width: 'auto' }}
+          style={{ height: '90px', width: 'auto' }}
           priority
         />
         <p className="text-white/80 text-sm mt-1 tracking-wide drop-shadow">Sistema de Presentismo</p>
       </div>
 
-      {/* Form — siempre visible sin scrollear */}
+      {/* Form */}
       <div className="relative w-full max-w-sm mx-auto px-5">
-        <form onSubmit={handleSubmit} className="w-full bg-white/95 backdrop-blur rounded-2xl shadow-xl p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="w-full bg-white/95 backdrop-blur rounded-2xl shadow-xl p-5 space-y-3">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
+            <label htmlFor="email" className="block text-xs font-medium text-gray-700 mb-1">Email</label>
             <input
               id="email"
               name="email"
@@ -67,9 +65,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Contraseña
-            </label>
+            <label htmlFor="password" className="block text-xs font-medium text-gray-700 mb-1">Contraseña</label>
             <input
               id="password"
               name="password"
