@@ -36,8 +36,9 @@ Prerugby (M6/M7/M8) se maneja junto para el entrenador pero son 3 filas separada
   /attendance/[divisionId]/[sessionId] — ver/editar sesión existente
   /docs                         — documentación por jugador (DNI, apto médico, ficha)
   /stats                        — selector de división para estadísticas
-  /stats/[divisionId]           — stats: año actual / últimos 60d / desde alta
+  /stats/[divisionId]           — stats: año actual / últimos 60d / desde alta / tendencia por sesión
   /admin                        — dashboard admin
+  /admin/hoy                    — vista del día: asistencia cruzada de todas las divisiones
   /admin/coaches                — listado de entrenadores
   /admin/coaches/new            — crear entrenador
   /admin/coaches/[coachId]      — editar entrenador (divisiones asignadas)
@@ -61,6 +62,12 @@ attendance_records session_id, player_id, present (bool)
 player_documents  id, player_id, doc_type ('dni'|'apto_medico'|'ficha'),
                   received_at, received_by
                   UNIQUE(player_id, doc_type)
+player_notes      id, player_id, note_date, content, created_by
+                  — Bitácora del entrenador; viaja con el jugador entre divisiones
+                  — Visible para todos los que acceden al jugador
+player_followups  id, player_id, contact_date, contact_type, notes, created_by
+                  contact_type: 'llamada'|'whatsapp'|'mensaje'|'reunion'|'otro'
+                  — Registro de contactos con el padre/madre de un jugador ausente
 ```
 
 ### Funciones RPC relevantes
@@ -98,9 +105,13 @@ SUPABASE_SERVICE_ROLE_KEY=...   ← solo servidor, nunca NEXT_PUBLIC_
 | `src/lib/utils/whatsapp.ts` | Formateo de números argentinos para wa.me |
 | `src/app/(app)/admin/actions.ts` | Server actions admin |
 | `src/app/(app)/docs/actions.ts` | Server actions documentación |
+| `src/app/(app)/players/[playerId]/actions.ts` | Server actions notas y seguimientos |
 | `src/app/api/attendance/route.ts` | POST upsert de asistencia |
+| `src/components/players/FollowupLog.tsx` | Log de seguimientos de ausentes (client) |
+| `src/components/players/PlayerNotes.tsx` | Bitácora del entrenador (client) |
+| `src/app/(app)/admin/hoy/page.tsx` | Vista del día: asistencia cruzada |
 | `src/middleware.ts` | Auth guard: no auth → /login |
-| `supabase/migrations/` | Todas las migraciones en orden (001→008) |
+| `supabase/migrations/` | Todas las migraciones en orden (001→009) |
 
 ## Convenciones importantes
 
@@ -151,11 +162,15 @@ dorado:  #f5c020  (vrc-gold)
 | Toma de lista con grilla de jugadores | ✅ |
 | Historial de sesiones por división | ✅ |
 | CRUD jugadores + foto con cámara | ✅ |
-| Estadísticas de asistencia (3 períodos) | ✅ |
+| Estadísticas de asistencia (año/60d/desde alta) | ✅ |
+| Tendencia por sesión (tab Tendencia en stats) | ✅ |
 | Links WhatsApp para contactar padres | ✅ |
 | Panel admin (entrenadores, divisiones) | ✅ |
+| Admin: vista del día (asistencia cruzada) | ✅ |
 | Avance de categoría anual | ✅ |
 | Sección Documentación (DNI/apto/ficha) | ✅ |
+| Seguimiento de ausentes (log por jugador) | ✅ |
+| Bitácora del entrenador (notas por jugador) | ✅ |
 | PWA instalable | ✅ |
 | Íconos PWA personalizados | ⚠️ pendiente (usar logo del club) |
 | Offline queue para asistencia | ⚠️ pendiente |
