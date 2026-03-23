@@ -1,21 +1,27 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { HoyDatePicker } from '@/components/admin/HoyDatePicker'
 
-function formatToday(): string {
-  const now = new Date()
-  return now.toLocaleDateString('es-AR', {
+function getDateISO(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function formatDisplayDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-')
+  const date = new Date(Number(y), Number(m) - 1, Number(d))
+  return date.toLocaleDateString('es-AR', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
+    year: 'numeric',
   })
 }
 
-function getTodayISO(): string {
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = String(now.getMonth() + 1).padStart(2, '0')
-  const d = String(now.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
+interface PageProps {
+  searchParams: { date?: string }
 }
 
 interface DivisionRow {
@@ -34,31 +40,31 @@ interface AttendanceRow {
   present: boolean
 }
 
-export default async function AdminHoyPage() {
+export default async function AdminHoyPage({ searchParams }: PageProps) {
   const supabase = await createClient()
-  const today = getTodayISO()
+  const today = getDateISO(new Date())
+  const date = searchParams.date ?? today
+  const isToday = date === today
 
   const [{ data: divisions }, { data: sessions }] = await Promise.all([
     supabase.from('divisions').select('id, name, sort_order').order('sort_order'),
     supabase
       .from('training_sessions')
       .select('id, division_id')
-      .eq('session_date', today),
+      .eq('session_date', date),
   ])
 
   const allDivisions: DivisionRow[] = divisions ?? []
-  const todaySessions: SessionRow[] = sessions ?? []
+  const daySessions: SessionRow[] = sessions ?? []
 
-  // Build session map: divisionId -> sessionId
   const sessionByDiv: Record<string, string> = {}
-  for (const s of todaySessions) {
+  for (const s of daySessions) {
     sessionByDiv[s.division_id] = s.id
   }
 
-  // Fetch attendance for all today's sessions
   let attendance: AttendanceRow[] = []
-  if (todaySessions.length > 0) {
-    const sessionIds = todaySessions.map(s => s.id)
+  if (daySessions.length > 0) {
+    const sessionIds = daySessions.map(s => s.id)
     const { data } = await supabase
       .from('attendance_records')
       .select('session_id, present')
@@ -66,9 +72,8 @@ export default async function AdminHoyPage() {
     attendance = data ?? []
   }
 
-  // Build counts per session
   const countBySession: Record<string, { present: number; total: number }> = {}
-  for (const s of todaySessions) {
+  for (const s of daySessions) {
     countBySession[s.id] = { present: 0, total: 0 }
   }
   for (const r of attendance) {
@@ -78,7 +83,6 @@ export default async function AdminHoyPage() {
     }
   }
 
-  // Aggregate totals
   let grandPresent = 0
   let grandTotal = 0
   for (const sid of Object.keys(countBySession)) {
@@ -86,7 +90,7 @@ export default async function AdminHoyPage() {
     grandTotal += countBySession[sid].total
   }
 
-  const activeDivisionsCount = todaySessions.length
+  const activeDivisionsCount = daySessions.length
 
   return (
     <div className="pb-6">
@@ -97,16 +101,21 @@ export default async function AdminHoyPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 capitalize">Hoy</h1>
-          <p className="text-sm text-gray-500 capitalize">{formatToday()}</p>
+        <div className="flex-1">
+          <h1 className="text-xl font-bold text-gray-900">
+            {isToday ? 'Hoy' : 'Asistencia del día'}
+          </h1>
+          <p className="text-sm text-gray-500 capitalize">{formatDisplayDate(date)}</p>
         </div>
+        <HoyDatePicker value={date} />
       </div>
 
       {/* Grand total card */}
       {activeDivisionsCount > 0 ? (
         <div className="mx-4 mb-4 bg-vrc-green rounded-2xl p-4 text-white">
-          <p className="text-sm font-medium opacity-80">Total en entrenamientos hoy</p>
+          <p className="text-sm font-medium opacity-80">
+            {isToday ? 'Total en entrenamientos hoy' : 'Total en entrenamientos ese día'}
+          </p>
           <p className="text-4xl font-bold mt-1">
             {grandPresent}
             <span className="text-xl font-medium opacity-70">/{grandTotal}</span>
@@ -125,8 +134,10 @@ export default async function AdminHoyPage() {
         </div>
       ) : (
         <div className="mx-4 mb-4 bg-gray-100 rounded-2xl p-5 text-center">
-          <p className="text-gray-500 font-medium">Sin entrenamientos registrados hoy</p>
-          <p className="text-sm text-gray-400 mt-1">Los entrenadores aún no tomaron lista</p>
+          <p className="text-gray-500 font-medium">Sin entrenamientos registrados</p>
+          <p className="text-sm text-gray-400 mt-1">
+            {isToday ? 'Los entrenadores aún no tomaron lista' : 'No hubo lista registrada ese día'}
+          </p>
         </div>
       )}
 

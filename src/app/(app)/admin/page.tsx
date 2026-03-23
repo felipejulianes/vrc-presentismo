@@ -95,7 +95,7 @@ export default async function AdminPage() {
       {/* Jugadores por división */}
       {divisionStats && divisionStats.length > 0 && (
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Jugadores por división</h2>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Jugadores activos por división</h2>
           <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
             {divisionStats.map((div: { id: string; name: string; players: { count: number }[] }) => {
               const count = Array.isArray(div.players) ? div.players[0]?.count ?? 0 : 0

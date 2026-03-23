@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import Image from 'next/image'
 import { logout } from '@/app/(auth)/login/actions'
 import { createClient } from '@/lib/supabase/server'
@@ -28,14 +27,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         />
         <div className="flex items-center gap-3">
           <span className="text-sm text-green-100 hidden sm:block">{profile?.full_name}</span>
-          {profile?.role === 'admin' && (
-            <Link
-              href="/admin"
-              className="text-xs bg-black/20 hover:bg-black/30 px-2 py-1 rounded"
-            >
-              Admin
-            </Link>
-          )}
           <form action={logout}>
             <button type="submit" className="text-xs text-green-200 hover:text-white">
               Salir
@@ -49,7 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {children}
       </main>
 
-      <BottomNav />
+      <BottomNav isAdmin={profile?.role === 'admin'} />
     </div>
   )
 }

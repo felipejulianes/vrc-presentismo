@@ -44,16 +44,28 @@ export default async function AttendanceDivisionPage({ params }: PageProps) {
           <h1 className="text-xl font-bold text-gray-900">{division.name}</h1>
           <p className="text-sm text-gray-500">Asistencia a entrenamientos</p>
         </div>
-        {/* Botón nueva lista */}
-        <Link
-          href={`/attendance/${divisionId}/new`}
-          className="flex items-center gap-1.5 px-3 py-2 bg-green-700 text-white rounded-xl text-sm font-semibold"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Tomar Asistencia
-        </Link>
+        <div className="flex items-center gap-2">
+          {sessions.length > 0 && (
+            <Link
+              href={`/attendance/${divisionId}/tabla`}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-xl text-sm font-semibold"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18M10 4v16M6 4v16M18 4v16" />
+              </svg>
+              Tabla
+            </Link>
+          )}
+          <Link
+            href={`/attendance/${divisionId}/new`}
+            className="flex items-center gap-1.5 px-3 py-2 bg-green-700 text-white rounded-xl text-sm font-semibold"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Tomar Asistencia
+          </Link>
+        </div>
       </div>
 
       {/* Lista de sesiones */}
