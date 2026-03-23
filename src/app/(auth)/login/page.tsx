@@ -39,10 +39,10 @@ export default function LoginPage() {
         <Image
           src="/logo.png"
           alt="Virreyes Rugby Club"
-          width={200}
-          height={200}
-          className="object-contain brightness-0 invert drop-shadow-lg"
-          style={{ height: '110px', width: 'auto' }}
+          width={280}
+          height={280}
+          className="object-contain drop-shadow-lg"
+          style={{ height: '130px', width: 'auto' }}
           priority
         />
         <p className="text-white/80 text-sm mt-2 tracking-wide drop-shadow">Sistema de Presentismo</p>
