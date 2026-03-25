@@ -195,6 +195,54 @@ export async function saveTercerTiempo(formData: FormData) {
   return { success: true }
 }
 
+export async function updateClubCoordinator(
+  clubId: string,
+  data: { coordinator_name: string; coordinator_phone: string; coordinator_notes: string }
+) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('opponent_clubs')
+    .update({ ...data, updated_at: new Date().toISOString() })
+    .eq('id', clubId)
+  if (error) return { error: error.message }
+  revalidatePath('/admin/clubs')
+  return { error: null }
+}
+
+export async function addVenue(clubId: string, name: string, address: string) {
+  const supabase = await createClient()
+  // Auto-generate maps_url from address
+  const maps_url = address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : null
+  const { data, error } = await supabase
+    .from('club_venues')
+    .insert({ club_id: clubId, name, address: address || null, maps_url })
+    .select('id, club_id, name, address, maps_url, is_default')
+    .single()
+  if (error) return { error: error.message, venue: null }
+  revalidatePath('/admin/clubs')
+  return { error: null, venue: data }
+}
+
+export async function updateVenue(venueId: string, name: string, address: string) {
+  const supabase = await createClient()
+  const maps_url = address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : null
+  const { error } = await supabase
+    .from('club_venues')
+    .update({ name, address: address || null, maps_url })
+    .eq('id', venueId)
+  if (error) return { error: error.message }
+  revalidatePath('/admin/clubs')
+  return { error: null }
+}
+
+export async function deleteVenue(venueId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase.from('club_venues').delete().eq('id', venueId)
+  if (error) return { error: error.message }
+  revalidatePath('/admin/clubs')
+  return { error: null }
+}
+
 // visitors is a JSON string: [{club_id, kids_count, coaches_count}]
 export async function saveTercerTiempoVisitors(
   activity_date: string,

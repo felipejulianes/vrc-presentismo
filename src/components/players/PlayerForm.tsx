@@ -29,6 +29,7 @@ export function PlayerForm({ divisions, player, defaultDivisionId }: PlayerFormP
     division_id: player?.division_id ?? defaultDivisionId ?? divisions[0]?.id ?? '',
     fecha_alta: player?.fecha_alta ?? todayStr,
     colegio: player?.colegio ?? '',
+    como_conocio: player?.como_conocio ?? '',
     inactivo: player?.inactivo ?? false,
   })
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null)
@@ -66,6 +67,7 @@ export function PlayerForm({ divisions, player, defaultDivisionId }: PlayerFormP
         division_id: form.division_id,
         fecha_alta: form.fecha_alta,
         colegio: form.colegio.trim() || null,
+        como_conocio: form.como_conocio || null,
         inactivo: form.inactivo,
       }
 
@@ -267,6 +269,23 @@ export function PlayerForm({ divisions, player, defaultDivisionId }: PlayerFormP
           placeholder="1123456789"
           inputMode="numeric"
         />
+      </div>
+
+      {/* ¿Cómo conoció el club? */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">¿Cómo conoció el club?</label>
+        <select
+          value={form.como_conocio}
+          onChange={e => set('como_conocio', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+        >
+          <option value="">— Sin especificar —</option>
+          <option value="familiar_club">Un familiar es del club</option>
+          <option value="amigo_barrio">Lo contó un amigo / vecino / del colegio</option>
+          <option value="redes_sociales">Redes sociales del club</option>
+          <option value="visita_colegio">Visita del club al colegio</option>
+          <option value="otro">Otro</option>
+        </select>
       </div>
 
       {/* Inactivo toggle */}

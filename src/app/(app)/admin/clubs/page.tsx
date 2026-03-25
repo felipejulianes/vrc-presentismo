@@ -1,10 +1,9 @@
 import Link from 'next/link'
-import { getAllOpponentClubs } from '@/lib/queries/sabados'
+import { getAllClubsFull } from '@/lib/queries/sabados'
 import { ClubsManager } from '@/components/admin/ClubsManager'
 
 export default async function ClubsPage() {
-  const clubs = await getAllOpponentClubs()
-
+  const clubs = await getAllClubsFull()
   return (
     <div className="pb-8">
       <div className="px-4 pt-4 pb-3 flex items-center gap-2">
@@ -18,7 +17,6 @@ export default async function ClubsPage() {
           <p className="text-sm text-gray-500">{clubs.filter(c => c.active).length} activos</p>
         </div>
       </div>
-
       <div className="px-4">
         <ClubsManager initialClubs={clubs} />
       </div>

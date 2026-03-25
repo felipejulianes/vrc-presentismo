@@ -207,3 +207,53 @@ export async function getConfiguredEventDates(limit = 12): Promise<string[]> {
   }
   return unique.slice(0, limit)
 }
+
+export type ClubVenue = {
+  id: string
+  club_id: string
+  name: string
+  address: string | null
+  maps_url: string | null
+  is_default: boolean
+}
+
+export type OpponentClubFull = OpponentClub & {
+  coordinator_name: string | null
+  coordinator_phone: string | null
+  coordinator_notes: string | null
+  venues: ClubVenue[]
+}
+
+export async function getClubWithVenues(clubId: string): Promise<OpponentClubFull | null> {
+  const supabase = await createClient()
+  const { data: club } = await supabase
+    .from('opponent_clubs')
+    .select('id, name, active, coordinator_name, coordinator_phone, coordinator_notes')
+    .eq('id', clubId)
+    .single()
+  if (!club) return null
+  const { data: venues } = await supabase
+    .from('club_venues')
+    .select('id, club_id, name, address, maps_url, is_default')
+    .eq('club_id', clubId)
+    .order('is_default', { ascending: false })
+  return { ...club, venues: venues ?? [] }
+}
+
+export async function getAllClubsFull(): Promise<OpponentClubFull[]> {
+  const supabase = await createClient()
+  const { data: clubs } = await supabase
+    .from('opponent_clubs')
+    .select('id, name, active, coordinator_name, coordinator_phone, coordinator_notes')
+    .order('name')
+  if (!clubs) return []
+  const { data: venues } = await supabase
+    .from('club_venues')
+    .select('id, club_id, name, address, maps_url, is_default')
+  const venuesByClub: Record<string, ClubVenue[]> = {}
+  for (const v of venues ?? []) {
+    if (!venuesByClub[v.club_id]) venuesByClub[v.club_id] = []
+    venuesByClub[v.club_id].push(v)
+  }
+  return clubs.map(c => ({ ...c, venues: venuesByClub[c.id] ?? [] }))
+}

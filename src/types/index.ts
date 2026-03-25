@@ -23,6 +23,7 @@ export type Player = {
   sobrenombre: string | null
   fecha_alta: string
   colegio: string | null
+  como_conocio: string | null
 }
 
 export type TrainingSession = {
