@@ -84,6 +84,7 @@ export async function getDivisionsForUser(): Promise<Division[]> {
     const { data, error } = await supabase
       .from('divisions')
       .select('*')
+      .eq('is_juvenile', false)
       .order('sort_order')
     if (error) throw error
     return data
@@ -96,5 +97,6 @@ export async function getDivisionsForUser(): Promise<Division[]> {
 
   if (error) throw error
   return ((data?.map((r: { divisions: unknown }) => r.divisions) ?? []) as Division[])
+    .filter((d: Division) => !d.is_juvenile)
     .sort((a, b) => a.sort_order - b.sort_order)
 }

@@ -16,6 +16,7 @@ export default async function AdminPage() {
       .gte('session_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]),
     supabase.from('divisions')
       .select('id, name, players(count)')
+      .eq('is_juvenile', false)
       .order('sort_order'),
   ])
 
@@ -50,8 +51,20 @@ export default async function AdminPage() {
             <div className="flex items-center gap-3">
               <span className="text-xl">⚽</span>
               <div>
-                <p className="text-sm font-medium text-gray-900">Actividades del sábado</p>
-                <p className="text-xs text-gray-400">Partidos, bondis y tercer tiempo</p>
+                <p className="text-sm font-medium text-gray-900">Fixture</p>
+                <p className="text-xs text-gray-400">Partidos, entrenamiento y bondis por sábado</p>
+              </div>
+            </div>
+            <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+          <Link href="/admin/tercer-tiempo" className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 active:bg-gray-100">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🥩</span>
+              <div>
+                <p className="text-sm font-medium text-gray-900">Tercer tiempo</p>
+                <p className="text-xs text-gray-400">Cantidades por división, horario y clubes visitantes</p>
               </div>
             </div>
             <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">

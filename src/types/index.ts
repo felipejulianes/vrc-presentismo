@@ -5,6 +5,7 @@ export type Division = {
   sort_order: number
   min_age: number | null
   max_age: number | null
+  is_juvenile: boolean
 }
 
 export type Player = {

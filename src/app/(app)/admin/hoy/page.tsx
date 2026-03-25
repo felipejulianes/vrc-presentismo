@@ -47,7 +47,7 @@ export default async function AdminHoyPage({ searchParams }: PageProps) {
   const isToday = date === today
 
   const [{ data: divisions }, { data: sessions }] = await Promise.all([
-    supabase.from('divisions').select('id, name, sort_order').order('sort_order'),
+    supabase.from('divisions').select('id, name, sort_order').eq('is_juvenile', false).order('sort_order'),
     supabase
       .from('training_sessions')
       .select('id, division_id')

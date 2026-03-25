@@ -36,9 +36,15 @@ export type TercerTiempoReport = {
   id: string
   activity_date: string
   division_id: string
+  // Confirmed values — set by the coordinator
   local_kids_count: number | null
   local_coaches_count: number | null
   notes: string | null
+  // Declared by coach from their attendance page
+  coach_declared_kids: number | null
+  coach_declared_coaches: number | null
+  // Time communicated to coaches
+  tercer_tiempo_time: string | null   // "HH:MM" format
 }
 
 export type TercerTiempoVisitor = {
@@ -131,7 +137,7 @@ export async function getTercerTiempoForDate(date: string): Promise<TercerTiempo
   const supabase = await createClient()
   const { data } = await supabase
     .from('tercer_tiempo_reports')
-    .select('id, activity_date, division_id, local_kids_count, local_coaches_count, notes')
+    .select('id, activity_date, division_id, local_kids_count, local_coaches_count, notes, coach_declared_kids, coach_declared_coaches, tercer_tiempo_time')
     .eq('activity_date', date)
 
   return (data ?? []).map((r: Record<string, unknown>) => ({
@@ -141,6 +147,9 @@ export async function getTercerTiempoForDate(date: string): Promise<TercerTiempo
     local_kids_count: r.local_kids_count as number | null,
     local_coaches_count: r.local_coaches_count as number | null,
     notes: r.notes as string | null,
+    coach_declared_kids: r.coach_declared_kids as number | null,
+    coach_declared_coaches: r.coach_declared_coaches as number | null,
+    tercer_tiempo_time: r.tercer_tiempo_time as string | null,
   }))
 }
 

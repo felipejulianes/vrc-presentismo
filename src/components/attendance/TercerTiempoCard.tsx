@@ -58,11 +58,12 @@ function TercerTiempoCardInner({
   attendanceCount,
   clubs,
 }: Props) {
+  // Coach uses coach_declared_* fields; coordinator's confirmed values are in local_*
   const [localKids, setLocalKids] = useState(
-    existingReport?.local_kids_count?.toString() ?? attendanceCount.toString()
+    existingReport?.coach_declared_kids?.toString() ?? attendanceCount.toString()
   )
   const [localCoaches, setLocalCoaches] = useState(
-    existingReport?.local_coaches_count?.toString() ?? ''
+    existingReport?.coach_declared_coaches?.toString() ?? ''
   )
   const [notes, setNotes] = useState(existingReport?.notes ?? '')
 
@@ -102,8 +103,9 @@ function TercerTiempoCardInner({
     const fd = new FormData()
     fd.append('activity_date', date)
     fd.append('division_id', divisionId)
-    fd.append('local_kids_count', localKids)
-    fd.append('local_coaches_count', localCoaches)
+    fd.append('source', 'coach')
+    fd.append('coach_declared_kids', localKids)
+    fd.append('coach_declared_coaches', localCoaches)
     if (notes) fd.append('notes', notes)
 
     const visitorPayload = visitors
@@ -155,9 +157,10 @@ function TercerTiempoCardInner({
         </div>
 
         <div className="px-4 py-3 space-y-3">
-          {/* Local side */}
+          {/* Local side — coach declares their estimate */}
           <div>
-            <p className="text-xs font-semibold text-gray-600 mb-2">{divisionName} (local)</p>
+            <p className="text-xs font-semibold text-gray-600 mb-1">{divisionName} (local)</p>
+            <p className="text-xs text-gray-400 mb-2">Declará cuántos van al tercer tiempo</p>
             <div className="flex gap-3">
               <div className="flex-1">
                 <label className="block text-xs text-gray-500 mb-1">Chicos</label>

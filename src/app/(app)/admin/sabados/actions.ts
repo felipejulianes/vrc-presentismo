@@ -145,11 +145,15 @@ export async function deleteDivisionActivity(divisionId: string, date: string) {
 
 // ── Tercer tiempo ────────────────────────────────────────────
 
+/**
+ * Save tercer tiempo data.
+ * source='coach'  → saves to coach_declared_kids / coach_declared_coaches
+ * source='coord'  → saves to local_kids_count / local_coaches_count + tercer_tiempo_time
+ */
 export async function saveTercerTiempo(formData: FormData) {
   const activity_date = formData.get('activity_date') as string
   const division_id = formData.get('division_id') as string
-  const local_kids_count = formData.get('local_kids_count')
-  const local_coaches_count = formData.get('local_coaches_count')
+  const source = (formData.get('source') as string) || 'coord'
   const notes = (formData.get('notes') as string)?.trim() || null
 
   if (!activity_date || !division_id) return { error: 'Faltan datos' }
@@ -162,20 +166,31 @@ export async function saveTercerTiempo(formData: FormData) {
     return isNaN(n) ? null : n
   }
 
+  const payload: Record<string, unknown> = {
+    activity_date,
+    division_id,
+    notes,
+    reported_by: user?.id,
+    updated_at: new Date().toISOString(),
+  }
+
+  if (source === 'coach') {
+    payload.coach_declared_kids = toInt(formData.get('coach_declared_kids'))
+    payload.coach_declared_coaches = toInt(formData.get('coach_declared_coaches'))
+  } else {
+    payload.local_kids_count = toInt(formData.get('local_kids_count'))
+    payload.local_coaches_count = toInt(formData.get('local_coaches_count'))
+    const time = (formData.get('tercer_tiempo_time') as string)?.trim() || null
+    if (time) payload.tercer_tiempo_time = time
+  }
+
   const { error } = await supabase
     .from('tercer_tiempo_reports')
-    .upsert({
-      activity_date,
-      division_id,
-      local_kids_count: toInt(local_kids_count),
-      local_coaches_count: toInt(local_coaches_count),
-      notes,
-      reported_by: user?.id,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'activity_date,division_id' })
+    .upsert(payload, { onConflict: 'activity_date,division_id' })
 
   if (error) return { error: error.message }
   revalidatePath(`/admin/sabados/${activity_date}`)
+  revalidatePath(`/admin/tercer-tiempo`)
   revalidatePath('/attendance')
   return { success: true }
 }

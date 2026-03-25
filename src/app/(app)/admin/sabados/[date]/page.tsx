@@ -5,12 +5,9 @@ import {
   getActivitiesForDate,
   getBusesForDate,
   getOpponentClubs,
-  getTercerTiempoForDate,
-  getTercerTiempoVisitorsForDate,
 } from '@/lib/queries/sabados'
 import { SabadoSetupGrid } from '@/components/admin/SabadoSetupGrid'
 import { BusesManager } from '@/components/admin/BusesManager'
-import { TercerTiempoGrid } from '@/components/admin/TercerTiempoGrid'
 
 interface PageProps {
   params: { date: string }
@@ -37,17 +34,16 @@ export default async function SabadoDatePage({ params }: PageProps) {
 
   const supabase = await createClient()
 
-  const [divisions, activities, buses, clubs, reports, visitors] = await Promise.all([
+  const [divisions, activities, buses, clubs] = await Promise.all([
     supabase
       .from('divisions')
       .select('id, name, sort_order')
+      .eq('is_juvenile', false)
       .order('sort_order')
       .then(r => r.data ?? []),
     getActivitiesForDate(date),
     getBusesForDate(date),
     getOpponentClubs(),
-    getTercerTiempoForDate(date),
-    getTercerTiempoVisitorsForDate(date),
   ])
 
   return (
@@ -87,17 +83,23 @@ export default async function SabadoDatePage({ params }: PageProps) {
         <BusesManager date={date} buses={buses} />
       </div>
 
-      {/* ── TERCER TIEMPO ────────────────────────────────────── */}
+      {/* ── LINK A TERCER TIEMPO ─────────────────────────────── */}
       <div className="px-4 pb-4">
-        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Tercer tiempo</h2>
-        <TercerTiempoGrid
-          date={date}
-          divisions={divisions.map(d => ({ id: d.id, name: d.name }))}
-          activities={activities}
-          reports={reports}
-          visitors={visitors}
-          clubs={clubs}
-        />
+        <Link
+          href={`/admin/tercer-tiempo?date=${date}`}
+          className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3 hover:bg-gray-50"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🥩</span>
+            <div>
+              <p className="text-sm font-medium text-gray-900">Tercer tiempo</p>
+              <p className="text-xs text-gray-400">Cantidades confirmadas y horario</p>
+            </div>
+          </div>
+          <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
       </div>
     </div>
   )
