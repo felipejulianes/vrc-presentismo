@@ -27,8 +27,8 @@ export function AdminStatsView({ totalActive, came30d, divisionStats, trendData 
 
   const pct30d = totalActive > 0 ? Math.round((came30d / totalActive) * 100) : 0
 
-  // Division bars — sorted ascending by totalActive (fewer players first)
-  const sortedDivisions = [...divisionStats].sort((a, b) => a.totalActive - b.totalActive)
+  // Division bars — sorted descending by totalActive (more players first)
+  const sortedDivisions = [...divisionStats].sort((a, b) => b.totalActive - a.totalActive)
   const maxTotal = Math.max(...sortedDivisions.map(d => d.totalActive), 1)
 
   // Trend chart data — last N unique dates
@@ -75,14 +75,17 @@ export function AdminStatsView({ totalActive, came30d, divisionStats, trendData 
               Vinieron ≥1 vez
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-sm bg-gray-200 inline-block" />
+              <span className="w-3 h-3 rounded-sm bg-green-200 inline-block" />
               No vinieron
             </span>
           </div>
 
           {sortedDivisions.map(div => {
+            // Bar total width proportional to totalActive vs the max division
             const barWidthPct = (div.totalActive / maxTotal) * 100
-            const darkWidthPct = div.totalActive > 0 ? (div.came30d / div.totalActive) * 100 : 0
+            // Within that bar: dark = came30d, light = didn't come
+            const cameSegPct = div.totalActive > 0 ? (div.came30d / div.totalActive) * 100 : 0
+            const absentSegPct = 100 - cameSegPct
             return (
               <Link
                 key={div.id}
@@ -91,15 +94,16 @@ export function AdminStatsView({ totalActive, came30d, divisionStats, trendData 
               >
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-gray-600 w-8 flex-shrink-0">{div.name}</span>
-                  <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gray-200 rounded-full overflow-hidden transition-all"
-                      style={{ width: `${barWidthPct}%` }}
-                    >
-                      <div
-                        className="h-full bg-vrc-green rounded-full transition-all"
-                        style={{ width: `${darkWidthPct}%` }}
-                      />
+                  {/* Outer container: full width, transparent — sets scale */}
+                  <div className="flex-1 h-5 rounded-full overflow-hidden bg-transparent">
+                    {/* Bar: takes only barWidthPct of the space, split into two segments */}
+                    <div className="h-full flex rounded-full overflow-hidden" style={{ width: `${barWidthPct}%` }}>
+                      {cameSegPct > 0 && (
+                        <div className="h-full bg-vrc-green" style={{ width: `${cameSegPct}%` }} />
+                      )}
+                      {absentSegPct > 0 && (
+                        <div className="h-full bg-green-200" style={{ width: `${absentSegPct}%` }} />
+                      )}
                     </div>
                   </div>
                   <span className="text-xs text-gray-500 w-14 flex-shrink-0 text-right">
