@@ -2,14 +2,17 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts'
 import { AbsenteeCard } from './AbsenteeCard'
-import type { PlayerStat, SessionTrend } from '@/lib/queries/stats'
+import type { PlayerStat, SessionTrend, DivisionKpis } from '@/lib/queries/stats'
 
-type Mode = 'year' | 'days' | 'since' | 'trend'
+type RankingMode = 'year' | 'days' | 'since'
 
 interface StatsViewProps {
   divisionName: string
-  divisionId: string
+  kpis: DivisionKpis
   statsByYear: PlayerStat[]
   statsByDays: PlayerStat[]
   statsSinceAlta: PlayerStat[]
@@ -17,58 +20,49 @@ interface StatsViewProps {
   currentYear: number
 }
 
-function formatDate(dateStr: string): string {
-  const [y, m, d] = dateStr.split('-')
-  const date = new Date(Number(y), Number(m) - 1, Number(d))
-  return date.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })
+function formatShortDate(dateStr: string): string {
+  const [, m, d] = dateStr.split('-')
+  return `${d}/${m}`
 }
 
-function TrendBar({ pct }: { pct: number | null }) {
-  const value = pct ?? 0
-  const color = value >= 75 ? 'bg-green-500' : value >= 50 ? 'bg-yellow-400' : 'bg-red-400'
-  return (
-    <div className="flex items-center gap-2 flex-1">
-      <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${value}%` }} />
-      </div>
-      <span className="text-sm font-semibold text-gray-700 w-9 text-right">{value}%</span>
-    </div>
-  )
-}
+const SESSION_LIMITS = [10, 20, 50] as const
 
 export function StatsView({
   divisionName,
-  divisionId,
+  kpis,
   statsByYear,
   statsByDays,
   statsSinceAlta,
   sessionTrend,
   currentYear,
 }: StatsViewProps) {
-  const [mode, setMode] = useState<Mode>('year')
+  const [rankingMode, setRankingMode] = useState<RankingMode>('year')
+  const [sessionLimit, setSessionLimit] = useState<10 | 20 | 50>(20)
 
-  const tabs: { key: Mode; label: string }[] = [
+  const rankingTabs: { key: RankingMode; label: string }[] = [
     { key: 'year', label: String(currentYear) },
     { key: 'days', label: 'Últimos 60d' },
     { key: 'since', label: 'Desde alta' },
-    { key: 'trend', label: 'Tendencia' },
   ]
 
-  const stats = mode === 'year' ? statsByYear : mode === 'days' ? statsByDays : statsSinceAlta
-
+  const stats = rankingMode === 'year' ? statsByYear : rankingMode === 'days' ? statsByDays : statsSinceAlta
   const sorted = [...stats].sort((a, b) => {
     if (a.attendance_pct === null) return 1
     if (b.attendance_pct === null) return -1
     return b.attendance_pct - a.attendance_pct
   })
 
-  const total = stats.length
-  const good = stats.filter(s => (s.attendance_pct ?? 0) >= 75).length
-  const warning = stats.filter(s => { const p = s.attendance_pct ?? 0; return p >= 50 && p < 75 }).length
-  const bad = stats.filter(s => (s.attendance_pct ?? 0) < 50).length
+  // Session chart data
+  const chartData = sessionTrend
+    .slice(-sessionLimit)
+    .map(s => ({ fecha: formatShortDate(s.session_date), Presentes: s.present_count }))
+
+  const pct30d = kpis.totalActive > 0
+    ? Math.round((kpis.came30d / kpis.totalActive) * 100)
+    : 0
 
   return (
-    <div>
+    <div className="pb-24">
       {/* Header */}
       <div className="px-4 pt-4 pb-3 flex items-center gap-2">
         <Link href="/stats" className="p-1 text-gray-500">
@@ -82,88 +76,105 @@ export function StatsView({
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="px-4 pb-4">
-        <div className="flex bg-gray-100 rounded-xl p-1 gap-0.5">
-          {tabs.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setMode(tab.key)}
-              className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${
-                mode === tab.key
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+      {/* KPI cards — siempre últimos 30 días */}
+      <div className="px-4 pb-4 grid grid-cols-2 gap-3">
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 text-center">
+          <p className="text-3xl font-bold text-gray-900">{kpis.totalActive}</p>
+          <p className="text-xs text-gray-500 mt-1">Jugadores activos</p>
+        </div>
+        <div className={`rounded-2xl p-4 text-center border ${
+          pct30d >= 70 ? 'bg-green-50 border-green-200' : pct30d >= 40 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'
+        }`}>
+          <p className={`text-3xl font-bold ${pct30d >= 70 ? 'text-green-700' : pct30d >= 40 ? 'text-yellow-700' : 'text-red-700'}`}>
+            {kpis.came30d}
+          </p>
+          <p className={`text-xs mt-1 ${pct30d >= 70 ? 'text-green-600' : pct30d >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
+            Vinieron últimos 30d
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">{pct30d}% del plantel</p>
         </div>
       </div>
 
-      {/* ── TENDENCIA ─────────────────────────────── */}
-      {mode === 'trend' && (
-        <div className="px-4 pb-4 space-y-2">
-          {sessionTrend.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
-              <p>No hay sesiones registradas todavía.</p>
-            </div>
-          ) : (
-            <>
-              <p className="text-xs text-gray-400 mb-3">Últimas {sessionTrend.length} sesiones — más reciente arriba</p>
-              <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
-                {sessionTrend.map(s => (
-                  <Link
-                    key={s.session_date}
-                    href={`/attendance/${divisionId}`}
-                    className="flex items-center gap-3 px-4 py-3"
-                  >
-                    <div className="w-28 flex-shrink-0">
-                      <p className="text-sm font-semibold text-gray-800 capitalize">{formatDate(s.session_date)}</p>
-                      <p className="text-xs text-gray-400">{s.present_count}/{s.total_count} presentes</p>
-                    </div>
-                    <TrendBar pct={s.attendance_pct} />
-                  </Link>
-                ))}
-              </div>
-            </>
-          )}
+      {/* Ranking de jugadores */}
+      <div className="px-4 pb-2">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm font-semibold text-gray-700">Ranking de asistencia</p>
+          <div className="flex bg-gray-100 rounded-lg p-0.5 gap-0.5">
+            {rankingTabs.map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setRankingMode(tab.key)}
+                className={`px-2 py-1 text-xs font-medium rounded transition-all ${
+                  rankingMode === tab.key
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {sorted.length === 0 ? (
+        <div className="text-center py-8 text-gray-400 px-4">
+          <p className="text-sm">No hay datos todavía. Tomá lista para ver estadísticas.</p>
+        </div>
+      ) : (
+        <div className="bg-white border-t border-b border-gray-200 divide-y divide-gray-100">
+          {sorted.map(stat => (
+            <AbsenteeCard key={stat.player_id} stat={stat} />
+          ))}
         </div>
       )}
 
-      {/* ── JUGADORES (year/days/since) ───────────── */}
-      {mode !== 'trend' && (
-        <>
-          {total > 0 && (
-            <div className="px-4 pb-4 grid grid-cols-3 gap-3">
-              <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-green-700">{good}</p>
-                <p className="text-xs text-green-600 mt-0.5">≥75%</p>
-              </div>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-yellow-600">{warning}</p>
-                <p className="text-xs text-yellow-600 mt-0.5">50–74%</p>
-              </div>
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-red-600">{bad}</p>
-                <p className="text-xs text-red-600 mt-0.5">&lt;50%</p>
-              </div>
-            </div>
-          )}
-
-          {sorted.length === 0 ? (
-            <div className="text-center py-16 text-gray-400 px-4">
-              <p>No hay datos de asistencia todavía.</p>
-              <p className="text-sm mt-1">Tomá lista para ver estadísticas aquí.</p>
-            </div>
-          ) : (
-            <div className="bg-white border-t border-b border-gray-200 divide-y divide-gray-100">
-              {sorted.map(stat => (
-                <AbsenteeCard key={stat.player_id} stat={stat} />
+      {/* Gráfico de asistencia por sesión */}
+      {sessionTrend.length > 0 && (
+        <div className="px-4 pt-5 pb-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold text-gray-700">Asistencia por sesión</p>
+            <div className="flex bg-gray-100 rounded-lg p-0.5 gap-0.5">
+              {SESSION_LIMITS.map(n => (
+                <button
+                  key={n}
+                  onClick={() => setSessionLimit(n)}
+                  className={`px-2 py-1 text-xs font-medium rounded transition-all ${
+                    sessionLimit === n
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {n === 50 ? 'Todas' : `Últ. ${n}`}
+                </button>
               ))}
             </div>
-          )}
-        </>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl p-3">
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="fecha"
+                  tick={{ fontSize: 9, fill: '#9ca3af' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 10, fill: '#9ca3af' }}
+                  axisLine={false}
+                  tickLine={false}
+                  allowDecimals={false}
+                />
+                <Tooltip
+                  contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }}
+                  formatter={(v) => [v, 'Presentes']}
+                />
+                <Bar dataKey="Presentes" fill="#2b7a2b" radius={[4, 4, 0, 0]} maxBarSize={32} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       )}
     </div>
   )
