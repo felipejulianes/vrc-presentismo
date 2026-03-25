@@ -1,16 +1,10 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { saveTercerTiempo, saveTercerTiempoVisitors } from '@/app/(app)/admin/sabados/actions'
+import { saveTercerTiempo } from '@/app/(app)/admin/sabados/actions'
 import type { DivisionActivity, TercerTiempoReport, TercerTiempoVisitor, OpponentClub } from '@/lib/queries/sabados'
 
 interface Division { id: string; name: string }
-
-interface VisitorEntry {
-  club_id: string
-  kids: string
-  coaches: string
-}
 
 interface Props {
   date: string
@@ -21,9 +15,13 @@ interface Props {
   clubs: OpponentClub[]
 }
 
-// Divisions grouped for the summary cards
-// Prerugby = M6, M7, M8 (category prerugby); others are individual
-function groupDivisionsForSummary(divisions: Division[]) {
+function formatTime(t: string | null | undefined): string {
+  if (!t) return ''
+  return t.slice(0, 5)
+}
+
+// Divisions grouped for summary cards
+function groupDivisions(divisions: Division[]) {
   const prerugby: Division[] = []
   const individual: Division[] = []
   for (const d of divisions) {
@@ -36,13 +34,9 @@ function groupDivisionsForSummary(divisions: Division[]) {
   return { prerugby, individual }
 }
 
-function formatTime(t: string | null): string {
-  if (!t) return ''
-  // DB returns "HH:MM:SS" or "HH:MM" — trim to HH:MM
-  return t.slice(0, 5)
-}
-
 export function TercerTiempoGrid({ date, divisions, activities, reports, visitors, clubs }: Props) {
+  const clubById = Object.fromEntries(clubs.map(c => [c.id, c.name]))
+
   const activityByDiv: Record<string, DivisionActivity> = {}
   for (const a of activities) activityByDiv[a.division_id] = a
 
@@ -69,24 +63,19 @@ export function TercerTiempoGrid({ date, divisions, activities, reports, visitor
     )
   }
 
-  // Grand totals (using coordinator's confirmed values)
-  const totalLocalKids = reports.reduce((s, r) => s + (r.local_kids_count ?? 0), 0)
-  const totalLocalCoaches = reports.reduce((s, r) => s + (r.local_coaches_count ?? 0), 0)
-  const totalVisitorKids = visitors.reduce((s, v) => s + (v.kids_count ?? 0), 0)
-  const totalVisitorCoaches = visitors.reduce((s, v) => s + (v.coaches_count ?? 0), 0)
-  const grandTotal = totalLocalKids + totalLocalCoaches + totalVisitorKids + totalVisitorCoaches
-  const hasData = reports.length > 0 || visitors.length > 0
+  // Grand totals (coordinator confirmed)
+  const totalKids = reports.reduce((s, r) => s + (r.local_kids_count ?? 0), 0)
+  const totalCoaches = reports.reduce((s, r) => s + (r.local_coaches_count ?? 0), 0)
+  const grandTotal = totalKids + totalCoaches
+  const hasData = reports.some(r => r.local_kids_count !== null)
 
-  // Summary cards grouping
-  const { prerugby, individual } = groupDivisionsForSummary(homeDivisions)
+  const { prerugby, individual } = groupDivisions(homeDivisions)
 
-  // Prerugby aggregate
   const prerugbyKids = prerugby.reduce((s, d) => s + (reportByDiv[d.id]?.local_kids_count ?? 0), 0)
   const prerugbyCoaches = prerugby.reduce((s, d) => s + (reportByDiv[d.id]?.local_coaches_count ?? 0), 0)
-  // Take the tercer_tiempo_time from the first prerugby division that has one
-  const prerugbyTime = formatTime(prerugby.find(d => reportByDiv[d.id]?.tercer_tiempo_time)
-    ? (reportByDiv[prerugby.find(d => reportByDiv[d.id]?.tercer_tiempo_time)!.id]?.tercer_tiempo_time ?? null)
-    : null)
+  const prerugbyTime = formatTime(
+    prerugby.map(d => reportByDiv[d.id]?.tercer_tiempo_time).find(Boolean) ?? null
+  )
 
   return (
     <div className="space-y-4">
@@ -98,42 +87,36 @@ export function TercerTiempoGrid({ date, divisions, activities, reports, visitor
             <p className="text-2xl font-bold">{grandTotal} personas</p>
           </div>
           <div className="text-right text-xs opacity-80 space-y-0.5">
-            <p>Chicos loc.: <strong>{totalLocalKids}</strong></p>
-            <p>Chicos vis.: <strong>{totalVisitorKids}</strong></p>
-            <p>Entrenadores: <strong>{totalLocalCoaches + totalVisitorCoaches}</strong></p>
+            <p>Chicos: <strong>{totalKids}</strong></p>
+            <p>Entrenadores: <strong>{totalCoaches}</strong></p>
           </div>
         </div>
       )}
 
-      {/* Summary cards */}
+      {/* Summary cards — one per category group */}
       <div>
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Resumen por categoría</p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {/* Prerugby card (M6+M7+M8 combined) */}
           {prerugby.length > 0 && (
             <div className="bg-white border border-gray-200 rounded-xl p-3">
               <p className="text-xs font-bold text-gray-700">Prerugby</p>
               <p className="text-xs text-gray-400 mb-1">{prerugby.map(d => d.name).join(', ')}</p>
               <div className="flex items-end justify-between mt-1">
                 <div>
-                  <p className="text-lg font-bold text-green-700">{prerugbyKids}</p>
+                  <p className="text-lg font-bold text-green-700">{prerugbyKids || '—'}</p>
                   <p className="text-xs text-gray-400">chicos</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-semibold text-gray-600">{prerugbyCoaches}</p>
+                  <p className="text-sm font-semibold text-gray-600">{prerugbyCoaches || '—'}</p>
                   <p className="text-xs text-gray-400">entr.</p>
                 </div>
               </div>
-              {prerugbyTime && (
-                <p className="text-xs text-vrc-green font-semibold mt-1">🕐 {prerugbyTime}</p>
-              )}
+              {prerugbyTime && <p className="text-xs text-vrc-green font-semibold mt-1">🕐 {prerugbyTime}</p>}
             </div>
           )}
-
-          {/* Individual cards per division */}
           {individual.map(d => {
             const rep = reportByDiv[d.id]
-            const time = formatTime(rep?.tercer_tiempo_time ?? null)
+            const time = formatTime(rep?.tercer_tiempo_time)
             return (
               <div key={d.id} className="bg-white border border-gray-200 rounded-xl p-3">
                 <p className="text-xs font-bold text-gray-700">{d.name}</p>
@@ -147,16 +130,14 @@ export function TercerTiempoGrid({ date, divisions, activities, reports, visitor
                     <p className="text-xs text-gray-400">entr.</p>
                   </div>
                 </div>
-                {time && (
-                  <p className="text-xs text-vrc-green font-semibold mt-1">🕐 {time}</p>
-                )}
+                {time && <p className="text-xs text-vrc-green font-semibold mt-1">🕐 {time}</p>}
               </div>
             )
           })}
         </div>
       </div>
 
-      {/* Detailed coordinator input per division */}
+      {/* Detailed input per division */}
       <div>
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Detalle por división</p>
         <div className="space-y-3">
@@ -167,8 +148,9 @@ export function TercerTiempoGrid({ date, divisions, activities, reports, visitor
               division={div}
               activity={activityByDiv[div.id]}
               report={reportByDiv[div.id] ?? null}
-              existingVisitors={visitorsByDiv[div.id] ?? []}
+              divisionVisitors={visitorsByDiv[div.id] ?? []}
               clubs={clubs}
+              clubById={clubById}
             />
           ))}
         </div>
@@ -184,49 +166,33 @@ interface RowProps {
   division: Division
   activity: DivisionActivity
   report: TercerTiempoReport | null
-  existingVisitors: TercerTiempoVisitor[]
+  divisionVisitors: TercerTiempoVisitor[]
   clubs: OpponentClub[]
+  clubById: Record<string, string>
 }
 
-function TercerTiempoRow({ date, division, activity, report, existingVisitors, clubs }: RowProps) {
-  // Coordinator's confirmed values
-  const [localKids, setLocalKids] = useState(report?.local_kids_count?.toString() ?? '')
-  const [localCoaches, setLocalCoaches] = useState(report?.local_coaches_count?.toString() ?? '')
-  const [ttTime, setTtTime] = useState(formatTime(report?.tercer_tiempo_time ?? null))
-
-  const [visitors, setVisitors] = useState<VisitorEntry[]>(() => {
-    if (existingVisitors.length > 0) {
-      return existingVisitors.map(v => ({
-        club_id: v.club_id ?? '',
-        kids: v.kids_count?.toString() ?? '',
-        coaches: v.coaches_count?.toString() ?? '',
-      }))
-    }
-    return [{ club_id: activity.opponent_club_id ?? '', kids: '', coaches: '' }]
-  })
-
+function TercerTiempoRow({ date, division, activity, report, divisionVisitors, clubById }: RowProps) {
+  // Coordinator's confirmed TOTAL (grand total: own + all visitors)
+  const [totalKids, setTotalKids] = useState(report?.local_kids_count?.toString() ?? '')
+  const [totalCoaches, setTotalCoaches] = useState(report?.local_coaches_count?.toString() ?? '')
+  const [ttTime, setTtTime] = useState(formatTime(report?.tercer_tiempo_time))
   const [saved, setSaved] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  // Coach's declared values — read-only reference
-  const coachKids = report?.coach_declared_kids
-  const coachCoaches = report?.coach_declared_coaches
+  // Coach's declared own counts
+  const coachOwnKids = report?.coach_declared_kids
+  const coachOwnCoaches = report?.coach_declared_coaches
 
-  function addVisitor() {
-    setVisitors(prev => [...prev, { club_id: '', kids: '', coaches: '' }])
-  }
+  // Sum of coach-declared visitors
+  const coachVisitorKids = divisionVisitors.reduce((s, v) => s + (v.kids_count ?? 0), 0)
+  const coachVisitorCoaches = divisionVisitors.reduce((s, v) => s + (v.coaches_count ?? 0), 0)
+  const coachTotalKids = (coachOwnKids ?? 0) + coachVisitorKids
+  const coachTotalCoaches = (coachOwnCoaches ?? 0) + coachVisitorCoaches
+  const hasCoachData = coachOwnKids !== null && coachOwnKids !== undefined
 
-  function removeVisitor(idx: number) {
-    setVisitors(prev => prev.filter((_, i) => i !== idx))
-  }
-
-  function updateVisitor(idx: number, field: keyof VisitorEntry, value: string) {
-    setVisitors(prev => prev.map((v, i) => i === idx ? { ...v, [field]: value } : v))
-  }
-
-  function useCoachValues() {
-    if (coachKids !== null && coachKids !== undefined) setLocalKids(coachKids.toString())
-    if (coachCoaches !== null && coachCoaches !== undefined) setLocalCoaches(coachCoaches.toString())
+  function useCoachTotal() {
+    setTotalKids(coachTotalKids.toString())
+    setTotalCoaches(coachTotalCoaches.toString())
   }
 
   function handleSave() {
@@ -234,32 +200,20 @@ function TercerTiempoRow({ date, division, activity, report, existingVisitors, c
     fd.append('activity_date', date)
     fd.append('division_id', division.id)
     fd.append('source', 'coord')
-    fd.append('local_kids_count', localKids)
-    fd.append('local_coaches_count', localCoaches)
+    fd.append('local_kids_count', totalKids)
+    fd.append('local_coaches_count', totalCoaches)
     if (ttTime) fd.append('tercer_tiempo_time', ttTime)
-
-    const visitorPayload = visitors
-      .filter(v => v.club_id)
-      .map(v => ({
-        club_id: v.club_id,
-        kids_count: v.kids !== '' ? parseInt(v.kids) : null,
-        coaches_count: v.coaches !== '' ? parseInt(v.coaches) : null,
-      }))
-
     startTransition(async () => {
-      const [r1, r2] = await Promise.all([
-        saveTercerTiempo(fd),
-        saveTercerTiempoVisitors(date, division.id, visitorPayload),
-      ])
-      if (!r1.error && !r2.error) {
+      const r = await saveTercerTiempo(fd)
+      if (!r.error) {
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
       }
     })
   }
 
-  const opponentText = activity.opponent_club_ids?.length > 1
-    ? `${activity.opponent_club_name ?? ''} +${activity.opponent_club_ids.length - 1}`
+  const opponentText = (activity.opponent_club_ids?.length ?? 0) > 0
+    ? activity.opponent_club_ids.map(id => clubById[id] ?? '').filter(Boolean).join(', ')
     : (activity.opponent_club_name ?? '')
 
   return (
@@ -268,9 +222,7 @@ function TercerTiempoRow({ date, division, activity, report, existingVisitors, c
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold text-gray-800">{division.name}</p>
-          <p className="text-xs text-gray-400">
-            Local{opponentText ? ` vs ${opponentText}` : ''}
-          </p>
+          <p className="text-xs text-gray-400">Local{opponentText ? ` vs ${opponentText}` : ''}</p>
         </div>
         <button
           onClick={handleSave}
@@ -285,44 +237,62 @@ function TercerTiempoRow({ date, division, activity, report, existingVisitors, c
         </button>
       </div>
 
-      {/* Coach declared — read-only reference */}
-      {(coachKids !== null && coachKids !== undefined) && (
-        <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 flex items-center justify-between">
-          <div>
+      {/* Coach declared — read-only reference breakdown */}
+      {hasCoachData ? (
+        <div className="bg-blue-50 border border-blue-100 rounded-lg p-2.5 space-y-1.5">
+          <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-blue-700">Declarado por el entrenador</p>
-            <p className="text-xs text-blue-600 mt-0.5">
-              {coachKids} chicos · {coachCoaches ?? '—'} entr.
-            </p>
+            <button
+              onClick={useCoachTotal}
+              className="text-xs text-blue-600 font-semibold hover:underline"
+            >
+              Usar estos totales
+            </button>
           </div>
-          <button
-            onClick={useCoachValues}
-            className="text-xs text-blue-600 font-semibold hover:underline"
-          >
-            Usar estos valores
-          </button>
+          {/* Own */}
+          <div className="flex gap-1.5 flex-wrap">
+            <span className="text-xs bg-white border border-blue-200 rounded px-1.5 py-0.5 text-blue-700">
+              {division.name}: {coachOwnKids} chicos · {coachOwnCoaches ?? '—'} entr.
+            </span>
+          </div>
+          {/* Visitor clubs */}
+          {divisionVisitors.filter(v => v.club_id).map(v => (
+            <div key={v.club_id} className="flex gap-1.5">
+              <span className="text-xs bg-white border border-blue-200 rounded px-1.5 py-0.5 text-blue-700">
+                {v.club_name ?? clubById[v.club_id!] ?? '?'}: {v.kids_count ?? '—'} chicos · {v.coaches_count ?? '—'} entr.
+              </span>
+            </div>
+          ))}
+          <p className="text-xs font-semibold text-blue-800 pt-0.5">
+            Total declarado: {coachTotalKids} chicos · {coachTotalCoaches} entr.
+          </p>
+        </div>
+      ) : (
+        <div className="bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+          <p className="text-xs text-gray-400">El entrenador aún no declaró los datos del tercer tiempo</p>
         </div>
       )}
 
-      {/* Coordinator confirmed values */}
+      {/* Coordinator confirmed totals + time */}
       <div>
-        <p className="text-xs text-gray-500 font-medium mb-2">Valores confirmados (coordinador)</p>
+        <p className="text-xs text-gray-500 font-medium mb-2">Total confirmado (coordinador)</p>
         <div className="flex gap-2">
           <div className="flex-1">
-            <label className="block text-xs text-gray-400 mb-1">Chicos locales</label>
+            <label className="block text-xs text-gray-400 mb-1">Chicos (total)</label>
             <input
               type="number" min={0}
-              value={localKids}
-              onChange={e => setLocalKids(e.target.value)}
+              value={totalKids}
+              onChange={e => setTotalKids(e.target.value)}
               placeholder="—"
               className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-vrc-green"
             />
           </div>
           <div className="flex-1">
-            <label className="block text-xs text-gray-400 mb-1">Entr. locales</label>
+            <label className="block text-xs text-gray-400 mb-1">Entr. (total)</label>
             <input
               type="number" min={0}
-              value={localCoaches}
-              onChange={e => setLocalCoaches(e.target.value)}
+              value={totalCoaches}
+              onChange={e => setTotalCoaches(e.target.value)}
               placeholder="—"
               className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-vrc-green"
             />
@@ -337,62 +307,6 @@ function TercerTiempoRow({ date, division, activity, report, existingVisitors, c
             />
           </div>
         </div>
-      </div>
-
-      {/* Visitors */}
-      <div className="border-t border-gray-100 pt-2 space-y-2">
-        <p className="text-xs font-semibold text-gray-500">Clubes visitantes</p>
-        {visitors.map((v, idx) => (
-          <div key={idx} className="flex gap-2 items-end">
-            <div className="flex-[2]">
-              {idx === 0 && <label className="block text-xs text-gray-400 mb-1">Club</label>}
-              <select
-                value={v.club_id}
-                onChange={e => updateVisitor(idx, 'club_id', e.target.value)}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-vrc-green"
-              >
-                <option value="">—</option>
-                {clubs.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-            <div className="flex-1">
-              {idx === 0 && <label className="block text-xs text-gray-400 mb-1">Chicos</label>}
-              <input
-                type="number" min={0}
-                value={v.kids}
-                onChange={e => updateVisitor(idx, 'kids', e.target.value)}
-                placeholder="—"
-                className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-vrc-green"
-              />
-            </div>
-            <div className="flex-1">
-              {idx === 0 && <label className="block text-xs text-gray-400 mb-1">Entr.</label>}
-              <input
-                type="number" min={0}
-                value={v.coaches}
-                onChange={e => updateVisitor(idx, 'coaches', e.target.value)}
-                placeholder="—"
-                className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-center focus:outline-none focus:ring-1 focus:ring-vrc-green"
-              />
-            </div>
-            {visitors.length > 1 && (
-              <button
-                onClick={() => removeVisitor(idx)}
-                className="pb-1 text-red-400 hover:text-red-600"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
-        ))}
-        <button
-          onClick={addVisitor}
-          className="text-xs text-vrc-green font-semibold hover:underline"
-        >
-          + Agregar club
-        </button>
       </div>
     </div>
   )
