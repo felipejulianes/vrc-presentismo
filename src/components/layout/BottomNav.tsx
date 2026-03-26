@@ -7,24 +7,27 @@ interface NavItem {
   href: string
   label: string
   icon: (props: { className?: string }) => React.ReactElement
+  // rutas adicionales que activan este tab
+  activeFor?: string[]
 }
 
-// Coach nav: Jugadores · Lista · Docs · Stats · Clubes
+// "Más" agrupa: /more, /clubs, /wiki, /docs
+const MAS_ROUTES = ['/more', '/clubs', '/wiki', '/docs']
+
+// Coach: Jugadores · Encuentros · Stats · Más  (4 tabs)
 const coachNavItems: NavItem[] = [
   { href: '/players', label: 'Jugadores', icon: UsersIcon },
-  { href: '/attendance', label: 'Lista', icon: CheckIcon },
-  { href: '/docs', label: 'Documentación', icon: FolderIcon },
-  { href: '/stats', label: 'Estadísticas', icon: ChartIcon },
-  { href: '/clubs', label: 'Clubes', icon: MapPinIcon },
+  { href: '/attendance', label: 'Encuentros', icon: CalendarIcon },
+  { href: '/stats', label: 'Stats', icon: ChartIcon },
+  { href: '/more', label: 'Más', icon: GridIcon, activeFor: MAS_ROUTES },
 ]
 
-// Admin nav: Jugadores · Lista · Clubes · Stats · Coordinación
-// (Docs sigue accesible en /docs pero no en el nav — uso menos frecuente para admins)
+// Admin: Jugadores · Encuentros · Stats · Más · Coordinación  (5 tabs)
 const adminNavItems: NavItem[] = [
   { href: '/players', label: 'Jugadores', icon: UsersIcon },
-  { href: '/attendance', label: 'Lista', icon: CheckIcon },
-  { href: '/clubs', label: 'Clubes', icon: MapPinIcon },
-  { href: '/stats', label: 'Estadísticas', icon: ChartIcon },
+  { href: '/attendance', label: 'Encuentros', icon: CalendarIcon },
+  { href: '/stats', label: 'Stats', icon: ChartIcon },
+  { href: '/more', label: 'Más', icon: GridIcon, activeFor: MAS_ROUTES },
   { href: '/admin', label: 'Coordinación', icon: StarIcon },
 ]
 
@@ -38,8 +41,10 @@ export function BottomNav({ isAdmin }: Props) {
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-200 flex">
-      {navItems.map(({ href, label, icon: Icon }) => {
-        const active = pathname.startsWith(href)
+      {navItems.map(({ href, label, icon: Icon, activeFor }) => {
+        const active = activeFor
+          ? activeFor.some(r => pathname.startsWith(r))
+          : pathname.startsWith(href)
         return (
           <Link
             key={href}
@@ -57,10 +62,10 @@ export function BottomNav({ isAdmin }: Props) {
   )
 }
 
-function CheckIcon({ className }: { className?: string }) {
+function CalendarIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
     </svg>
   )
 }
@@ -81,19 +86,10 @@ function ChartIcon({ className }: { className?: string }) {
   )
 }
 
-function FolderIcon({ className }: { className?: string }) {
+function GridIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
-    </svg>
-  )
-}
-
-function MapPinIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
     </svg>
   )
 }

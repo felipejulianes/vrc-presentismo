@@ -14,7 +14,12 @@ export default async function PlayersPage() {
       <div className="px-4 pt-4 pb-2 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Jugadores</h1>
-          <p className="text-sm text-gray-500">{players.length} activos</p>
+          <div className="flex items-center gap-3 mt-0.5">
+            <p className="text-sm text-gray-500">{players.length} activos</p>
+            <Link href="/docs" className="text-xs text-green-700 font-medium flex items-center gap-1">
+              <span>📁</span> Documentación
+            </Link>
+          </div>
         </div>
         <Link
           href="/players/new"
