@@ -1,8 +1,50 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { saveWikiPage, deleteWikiPage } from '@/app/(app)/wiki/actions'
 import type { WikiPage } from '@/lib/queries/wiki'
+
+// ── Markdown renderer ─────────────────────────────────────────
+function WikiContent({ content }: { content: string }) {
+  return (
+    <div className="wiki-content text-sm text-gray-800 leading-relaxed">
+      <ReactMarkdown
+        components={{
+          h1: ({ children }) => <h1 className="text-xl font-bold text-gray-900 mt-5 mb-2 first:mt-0">{children}</h1>,
+          h2: ({ children }) => <h2 className="text-base font-bold text-vrc-green mt-5 mb-2 first:mt-0 border-b border-gray-200 pb-1">{children}</h2>,
+          h3: ({ children }) => <h3 className="text-sm font-bold text-gray-700 mt-4 mb-1">{children}</h3>,
+          p: ({ children }) => <p className="mb-2 text-gray-700">{children}</p>,
+          strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
+          ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-0.5 text-gray-700">{children}</ul>,
+          ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-0.5 text-gray-700">{children}</ol>,
+          li: ({ children }) => <li className="text-sm">{children}</li>,
+          a: ({ href, children }) => (
+            <a href={href} target="_blank" rel="noopener noreferrer"
+               className="text-vrc-green underline font-medium">{children}</a>
+          ),
+          table: ({ children }) => (
+            <div className="overflow-x-auto my-3 -mx-1">
+              <table className="min-w-full text-xs border-collapse">{children}</table>
+            </div>
+          ),
+          thead: ({ children }) => <thead className="bg-gray-100">{children}</thead>,
+          tbody: ({ children }) => <tbody className="divide-y divide-gray-100">{children}</tbody>,
+          tr: ({ children }) => <tr>{children}</tr>,
+          th: ({ children }) => <th className="px-2 py-1.5 text-left font-semibold text-gray-700 border border-gray-200">{children}</th>,
+          td: ({ children }) => <td className="px-2 py-1.5 text-gray-700 border border-gray-100">{children}</td>,
+          blockquote: ({ children }) => (
+            <blockquote className="border-l-4 border-vrc-green pl-3 my-2 text-gray-600 italic">{children}</blockquote>
+          ),
+          hr: () => <hr className="my-4 border-gray-200" />,
+          code: ({ children }) => <code className="bg-gray-100 rounded px-1 text-xs font-mono">{children}</code>,
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  )
+}
 
 const CATEGORIES: { key: string; label: string; emoji: string }[] = [
   { key: 'reglamento', label: 'Reglamento', emoji: '📋' },
@@ -61,9 +103,7 @@ export function WikiPageList({ pages: initialPages, isAdmin }: Props) {
         </div>
         <div className="bg-white rounded-2xl border border-gray-200 px-4 py-4">
           {viewing.content ? (
-            <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
-              {viewing.content}
-            </pre>
+            <WikiContent content={viewing.content} />
           ) : (
             <p className="text-sm text-gray-400 italic">Sin contenido todavía.</p>
           )}
