@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { saveWikiPage, deleteWikiPage } from '@/app/(app)/wiki/actions'
 import type { WikiPage } from '@/lib/queries/wiki'
 
@@ -10,6 +11,7 @@ function WikiContent({ content }: { content: string }) {
   return (
     <div className="wiki-content text-sm text-gray-800 leading-relaxed">
       <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
         components={{
           h1: ({ children }) => <h1 className="text-xl font-bold text-gray-900 mt-5 mb-2 first:mt-0">{children}</h1>,
           h2: ({ children }) => <h2 className="text-base font-bold text-vrc-green mt-5 mb-2 first:mt-0 border-b border-gray-200 pb-1">{children}</h2>,
