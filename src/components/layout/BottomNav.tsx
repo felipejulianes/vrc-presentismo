@@ -9,24 +9,24 @@ interface NavItem {
   icon: (props: { className?: string }) => React.ReactElement
 }
 
-const baseNavItems: NavItem[] = [
+// Coach nav: Jugadores · Lista · Docs · Stats · Clubes
+const coachNavItems: NavItem[] = [
   { href: '/players', label: 'Jugadores', icon: UsersIcon },
   { href: '/attendance', label: 'Lista', icon: CheckIcon },
   { href: '/docs', label: 'Documentación', icon: FolderIcon },
   { href: '/stats', label: 'Estadísticas', icon: ChartIcon },
+  { href: '/clubs', label: 'Clubes', icon: MapPinIcon },
 ]
 
-const adminNavItem: NavItem = {
-  href: '/admin',
-  label: 'Coordinación',
-  icon: StarIcon,
-}
-
-const clubsNavItem: NavItem = {
-  href: '/clubs',
-  label: 'Clubes',
-  icon: MapPinIcon,
-}
+// Admin nav: Jugadores · Lista · Clubes · Stats · Coordinación
+// (Docs sigue accesible en /docs pero no en el nav — uso menos frecuente para admins)
+const adminNavItems: NavItem[] = [
+  { href: '/players', label: 'Jugadores', icon: UsersIcon },
+  { href: '/attendance', label: 'Lista', icon: CheckIcon },
+  { href: '/clubs', label: 'Clubes', icon: MapPinIcon },
+  { href: '/stats', label: 'Estadísticas', icon: ChartIcon },
+  { href: '/admin', label: 'Coordinación', icon: StarIcon },
+]
 
 interface Props {
   isAdmin?: boolean
@@ -34,7 +34,7 @@ interface Props {
 
 export function BottomNav({ isAdmin }: Props) {
   const pathname = usePathname()
-  const navItems = isAdmin ? [...baseNavItems, adminNavItem] : [...baseNavItems, clubsNavItem]
+  const navItems = isAdmin ? adminNavItems : coachNavItems
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-200 flex">
