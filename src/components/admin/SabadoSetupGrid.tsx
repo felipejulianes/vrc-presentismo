@@ -6,7 +6,7 @@ import {
   deleteDivisionActivity,
   addOpponentClub,
 } from '@/app/(app)/admin/sabados/actions'
-import type { DivisionActivity, OpponentClub, EventBus } from '@/lib/queries/sabados'
+import type { DivisionActivity, OpponentClub, OpponentClubFull, EventBus } from '@/lib/queries/sabados'
 
 interface Division { id: string; name: string }
 
@@ -14,7 +14,7 @@ interface Props {
   date: string
   divisions: Division[]
   activities: DivisionActivity[]
-  clubs: OpponentClub[]
+  clubs: OpponentClubFull[]
   buses: EventBus[]
 }
 
@@ -32,7 +32,7 @@ export function SabadoSetupGrid({ date, divisions, activities, clubs: initialClu
     startGlobal(async () => {
       const res = await addOpponentClub(newClubName.trim())
       if (res.club) {
-        setClubs(prev => [...prev, { id: res.club!.id, name: res.club!.name, active: true }])
+        setClubs(prev => [...prev, { id: res.club!.id, name: res.club!.name, active: true, coordinator_name: null, coordinator_phone: null, coordinator_notes: null, venues: [] }])
         setNewClubName('')
         setAddingClub(false)
       }
@@ -139,6 +139,10 @@ function MultiClubSelect({
       ? selectedNames[0]
       : `${selectedNames[0]} +${selectedNames.length - 1}`
 
+  // Selected clubs appear at the top of the dropdown
+  const selectedClubs = clubs.filter(c => selectedIds.includes(c.id))
+  const otherClubs = clubs.filter(c => !selectedIds.includes(c.id))
+
   return (
     <div ref={ref} className="relative">
       <button
@@ -154,20 +158,32 @@ function MultiClubSelect({
         <div className="absolute z-50 top-full left-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[180px] py-1">
           <p className="text-xs text-gray-400 px-3 pt-1 pb-1 border-b border-gray-100">Seleccioná los rivales</p>
           <div className="max-h-48 overflow-y-auto">
-            {clubs.map(c => (
+            {selectedClubs.map(c => (
+              <label
+                key={c.id}
+                className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-50 cursor-pointer bg-blue-50/50"
+              >
+                <input
+                  type="checkbox"
+                  checked={true}
+                  onChange={() => onChange(selectedIds.filter(id => id !== c.id))}
+                  className="w-3 h-3 accent-green-700 flex-shrink-0"
+                />
+                <span className="text-xs text-gray-800 font-medium">{c.name}</span>
+              </label>
+            ))}
+            {selectedClubs.length > 0 && otherClubs.length > 0 && (
+              <div className="border-t border-gray-100 my-0.5" />
+            )}
+            {otherClubs.map(c => (
               <label
                 key={c.id}
                 className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer"
               >
                 <input
                   type="checkbox"
-                  checked={selectedIds.includes(c.id)}
-                  onChange={e => {
-                    const next = e.target.checked
-                      ? [...selectedIds, c.id]
-                      : selectedIds.filter(id => id !== c.id)
-                    onChange(next)
-                  }}
+                  checked={false}
+                  onChange={() => onChange([...selectedIds, c.id])}
                   className="w-3 h-3 accent-green-700 flex-shrink-0"
                 />
                 <span className="text-xs text-gray-700">{c.name}</span>
@@ -188,13 +204,60 @@ function MultiClubSelect({
   )
 }
 
+// ── Venue selector — selected clubs' venues appear first ─────
+
+function VenueSelect({
+  clubs,
+  selectedClubIds,
+  value,
+  onChange,
+}: {
+  clubs: OpponentClubFull[]
+  selectedClubIds: string[]
+  value: string
+  onChange: (venueId: string) => void
+}) {
+  const selectedClubs = clubs.filter(c => selectedClubIds.includes(c.id) && c.venues.length > 0)
+  const otherClubs = clubs.filter(c => !selectedClubIds.includes(c.id) && c.venues.length > 0)
+
+  const venueLabel = (club: OpponentClubFull, venues: typeof club.venues, v: typeof venues[0]) =>
+    venues.length > 1 ? `${club.name} — ${v.name}` : club.name
+
+  return (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-vrc-green min-w-[100px]"
+    >
+      <option value="">Sede?</option>
+      {selectedClubs.map(club =>
+        club.venues.map(v => (
+          <option key={v.id} value={v.id}>
+            {venueLabel(club, club.venues, v)}
+          </option>
+        ))
+      )}
+      {selectedClubs.length > 0 && otherClubs.length > 0 && (
+        <option disabled>──────────</option>
+      )}
+      {otherClubs.map(club =>
+        club.venues.map(v => (
+          <option key={v.id} value={v.id}>
+            {venueLabel(club, club.venues, v)}
+          </option>
+        ))
+      )}
+    </select>
+  )
+}
+
 // ── Grid row per division ───────────────────────────────────
 
 interface RowProps {
   date: string
   division: Division
   activity: DivisionActivity | null
-  clubs: OpponentClub[]
+  clubs: OpponentClubFull[]
   buses: EventBus[]
   onNeedClub: () => void
 }
@@ -207,7 +270,7 @@ function GridRow({ date, division, activity, clubs, buses, onNeedClub }: RowProp
     : []
   )
   const [venue, setVenue] = useState<'local' | 'visitante' | ''>(activity?.venue ?? '')
-  const [locationId, setLocationId] = useState(activity?.location_club_id ?? '')
+  const [locationVenueId, setLocationVenueId] = useState(activity?.location_venue_id ?? '')
   const [busId, setBusId] = useState(activity?.bus_id ?? '')
   const [saved, setSaved] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -217,7 +280,7 @@ function GridRow({ date, division, activity, clubs, buses, onNeedClub }: RowProp
       t: typeof type
       opps: string[]
       v: typeof venue
-      loc: string
+      locVenue: string
       bus: string
     }> = {}
   ) {
@@ -229,12 +292,12 @@ function GridRow({ date, division, activity, clubs, buses, onNeedClub }: RowProp
     fd.append('activity_type', t)
     const v = overrides.v ?? venue
     const opps = overrides.opps ?? opponentIds
-    const loc = overrides.loc ?? locationId
+    const locVenue = overrides.locVenue ?? locationVenueId
     const bus = overrides.bus ?? busId
     if (t === 'partido') {
       if (v) fd.append('venue', v)
       for (const id of opps) fd.append('opponent_club_id', id)
-      if (loc) fd.append('location_club_id', loc)
+      if (locVenue) fd.append('location_venue_id', locVenue)
     }
     if (bus) fd.append('bus_id', bus)
     startTransition(async () => {
@@ -246,14 +309,14 @@ function GridRow({ date, division, activity, clubs, buses, onNeedClub }: RowProp
 
   function handleType(t: 'partido' | 'entrenamiento') {
     setType(t)
-    if (t === 'entrenamiento') { setOpponentIds([]); setVenue(''); setLocationId('') }
+    if (t === 'entrenamiento') { setOpponentIds([]); setVenue(''); setLocationVenueId('') }
     save({ t, opps: t === 'entrenamiento' ? [] : opponentIds })
   }
 
   function handleVenue(v: 'local' | 'visitante') {
     setVenue(v)
-    if (v === 'local') setLocationId('')
-    save({ v })
+    if (v === 'local') setLocationVenueId('')
+    save({ v, locVenue: v === 'local' ? '' : locationVenueId })
   }
 
   function handleOpponents(ids: string[]) {
@@ -267,7 +330,7 @@ function GridRow({ date, division, activity, clubs, buses, onNeedClub }: RowProp
       setType('')
       setVenue('')
       setOpponentIds([])
-      setLocationId('')
+      setLocationVenueId('')
       setBusId('')
     })
   }
@@ -297,7 +360,7 @@ function GridRow({ date, division, activity, clubs, buses, onNeedClub }: RowProp
         </div>
       </td>
 
-      {/* Rivals (multi-select) */}
+      {/* Rivals (multi-select) — selected ones shown first */}
       <td className="py-2 px-1">
         {isPartido ? (
           <div className="flex gap-1 items-center">
@@ -335,17 +398,15 @@ function GridRow({ date, division, activity, clubs, buses, onNeedClub }: RowProp
         )}
       </td>
 
-      {/* Dónde (sede) — only visible if partido visitante */}
+      {/* Dónde — venue selector for partido visitante */}
       <td className="py-2 px-1">
         {isPartido && venue === 'visitante' ? (
-          <select
-            value={locationId}
-            onChange={e => { setLocationId(e.target.value); save({ loc: e.target.value }) }}
-            className="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-vrc-green min-w-[80px]"
-          >
-            <option value="">Club?</option>
-            {clubs.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <VenueSelect
+            clubs={clubs}
+            selectedClubIds={opponentIds}
+            value={locationVenueId}
+            onChange={(id) => { setLocationVenueId(id); save({ locVenue: id }) }}
+          />
         ) : (
           <span className="text-xs text-gray-300">{isPartido && venue === 'local' ? 'VRC' : '—'}</span>
         )}

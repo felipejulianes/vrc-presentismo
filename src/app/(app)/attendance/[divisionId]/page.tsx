@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionsForDivision } from '@/lib/queries/attendance'
-import { getActivitiesForDate } from '@/lib/queries/sabados'
+import { getActivitiesForDivision } from '@/lib/queries/sabados'
+import type { DivisionActivity } from '@/lib/queries/sabados'
 
 interface PageProps {
   params: { divisionId: string }
@@ -22,6 +23,35 @@ function formatDate(dateStr: string): string {
   })
 }
 
+type ActivityInfo = {
+  label: string
+  mapsUrl?: string | null
+  venueLabel?: string | null
+  venueAddress?: string | null
+}
+
+function buildActivityInfo(act: DivisionActivity): ActivityInfo {
+  if (act.activity_type === 'entrenamiento') {
+    return { label: '🏃 Entrenamiento' }
+  }
+  const extraCount = (act.opponent_club_ids?.length ?? 0) - 1
+  const vsText = act.opponent_club_name
+    ? `vs ${act.opponent_club_name}${extraCount > 0 ? ` +${extraCount}` : ''}`
+    : ''
+  const venueText = act.venue === 'local' ? '· Local' : act.venue === 'visitante' ? '· Visitante' : ''
+  const label = ['⚽ Partido', vsText, venueText].filter(Boolean).join(' ')
+
+  // Venue info for partido visitante
+  const venueLabel = act.venue === 'visitante'
+    ? (act.location_venue_name ?? act.location_club_name ?? null)
+    : act.venue === 'local' ? 'VRC' : null
+  const mapsUrl = act.venue === 'visitante'
+    ? (act.location_venue_maps_url ?? (act.location_club_name ? `https://maps.google.com/?q=${encodeURIComponent(act.location_club_name)}` : null))
+    : null
+
+  return { label, mapsUrl, venueLabel, venueAddress: act.location_venue_address }
+}
+
 export default async function AttendanceDivisionPage({ params }: PageProps) {
   const { divisionId } = params
   const today = toISO(new Date())
@@ -35,9 +65,18 @@ export default async function AttendanceDivisionPage({ params }: PageProps) {
 
   if (!division) notFound()
 
-  // Sessions ordered ascending so upcoming ones appear at top naturally
-  const sessions = await getSessionsForDivision(divisionId)
-  // Sort ascending (nearest first — upcoming at top, past below)
+  const [sessions, activities] = await Promise.all([
+    getSessionsForDivision(divisionId),
+    getActivitiesForDivision(divisionId),
+  ])
+
+  // Build activity map keyed by date
+  const activityByDate: Record<string, ActivityInfo> = {}
+  for (const act of activities) {
+    activityByDate[act.activity_date] = buildActivityInfo(act)
+  }
+
+  // Sort descending (nearest first — upcoming at top, past below)
   const sorted = [...sessions].sort((a, b) =>
     a.session_date < b.session_date ? 1 : a.session_date > b.session_date ? -1 : 0
   )
@@ -45,32 +84,6 @@ export default async function AttendanceDivisionPage({ params }: PageProps) {
   // Separate upcoming/today from past
   const upcoming = sorted.filter(s => s.session_date >= today)
   const past = sorted.filter(s => s.session_date < today)
-
-  // Fetch activities for upcoming session dates to show match info
-  const upcomingDates = upcoming.map(s => s.session_date)
-  const activitiesNested = await Promise.all(
-    upcomingDates.map(d => getActivitiesForDate(d))
-  )
-  const activityByDate: Record<string, string> = {}
-  for (let i = 0; i < upcomingDates.length; i++) {
-    const act = activitiesNested[i].find(a => a.division_id === divisionId)
-    if (act) {
-      if (act.activity_type === 'partido') {
-        // opponent_club_name = name of first opponent (from DB join)
-        // opponent_club_ids.length tells us if there are more
-        const extraCount = (act.opponent_club_ids?.length ?? 0) - 1
-        const vsText = act.opponent_club_name
-          ? `vs ${act.opponent_club_name}${extraCount > 0 ? ` +${extraCount}` : ''}`
-          : ''
-        const parts = ['⚽ Partido']
-        if (vsText) parts.push(vsText)
-        if (act.venue) parts.push(act.venue === 'local' ? '· Local' : '· Visitante')
-        activityByDate[upcomingDates[i]] = parts.join(' ')
-      } else {
-        activityByDate[upcomingDates[i]] = '🏃 Entrenamiento'
-      }
-    }
-  }
 
   return (
     <div className="flex flex-col min-h-full">
@@ -125,7 +138,7 @@ export default async function AttendanceDivisionPage({ params }: PageProps) {
                   key={session.id}
                   session={session}
                   divisionId={divisionId}
-                  activityLabel={activityByDate[session.session_date]}
+                  activityInfo={activityByDate[session.session_date]}
                   today={today}
                 />
               ))}
@@ -141,7 +154,7 @@ export default async function AttendanceDivisionPage({ params }: PageProps) {
                   key={session.id}
                   session={session}
                   divisionId={divisionId}
-                  activityLabel={undefined}
+                  activityInfo={activityByDate[session.session_date]}
                   today={today}
                 />
               ))}
@@ -156,12 +169,12 @@ export default async function AttendanceDivisionPage({ params }: PageProps) {
 function SessionCard({
   session,
   divisionId,
-  activityLabel,
+  activityInfo,
   today,
 }: {
   session: { id: string; session_date: string; present_count: number; total_count: number }
   divisionId: string
-  activityLabel?: string
+  activityInfo?: ActivityInfo
   today: string
 }) {
   const isToday = session.session_date === today
@@ -179,8 +192,22 @@ function SessionCard({
           {formatDate(session.session_date)}
           {isToday && <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Hoy</span>}
         </p>
-        {activityLabel ? (
-          <p className="text-xs text-blue-600 font-medium mt-0.5">{activityLabel}</p>
+        {activityInfo ? (
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-xs text-blue-600 font-medium truncate">{activityInfo.label}</p>
+            {activityInfo.mapsUrl && (
+              <a
+                href={activityInfo.mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                className="flex-shrink-0 text-blue-500 hover:text-blue-700"
+                title={activityInfo.venueLabel ?? 'Ver en Maps'}
+              >
+                📍
+              </a>
+            )}
+          </div>
         ) : (
           <p className="text-xs text-gray-400">{session.session_date}</p>
         )}

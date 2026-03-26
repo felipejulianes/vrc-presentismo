@@ -91,6 +91,7 @@ export async function saveDivisionActivity(formData: FormData) {
   const opponent_club_ids = formData.getAll('opponent_club_id').filter(Boolean) as string[]
   const opponent_club_id = opponent_club_ids[0] ?? null  // first club kept for backwards compat
   const location_club_id = (formData.get('location_club_id') as string) || null
+  const location_venue_id = (formData.get('location_venue_id') as string) || null
   const location_notes = (formData.get('location_notes') as string)?.trim() || null
   const bus_id = (formData.get('bus_id') as string) || null
 
@@ -107,6 +108,7 @@ export async function saveDivisionActivity(formData: FormData) {
     opponent_club_id: activity_type === 'partido' ? opponent_club_id : null,
     opponent_club_ids: activity_type === 'partido' ? opponent_club_ids : [],
     location_club_id: activity_type === 'partido' && venue === 'visitante' ? location_club_id : null,
+    location_venue_id: activity_type === 'partido' && venue === 'visitante' ? location_venue_id : null,
     location_notes,
     bus_id,
     created_by: user?.id,

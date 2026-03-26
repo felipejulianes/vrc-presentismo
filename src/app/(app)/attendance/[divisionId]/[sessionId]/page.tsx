@@ -51,7 +51,7 @@ export default async function SessionPage({ params }: PageProps) {
   // Build activity banner text
   const clubById = Object.fromEntries(clubs.map(c => [c.id, c.name]))
 
-  let activityBanner: { label: string; sub: string; color: string } | null = null
+  let activityBanner: { label: string; sub: string; color: string; mapsUrl?: string | null; venueAddress?: string | null } | null = null
   if (activity) {
     if (activity.activity_type === 'partido') {
       const opponentNames = activity.opponent_club_ids.length > 0
@@ -59,11 +59,19 @@ export default async function SessionPage({ params }: PageProps) {
         : activity.opponent_club_name ? [activity.opponent_club_name] : []
       const vsText = opponentNames.length > 0 ? `vs ${opponentNames.join(', ')}` : ''
       const venueText = activity.venue === 'local' ? 'Local' : activity.venue === 'visitante' ? 'Visitante' : ''
-      const where = activity.venue === 'local' ? 'VRC' : activity.location_club_name ?? activity.location_notes
+      // Prefer venue data (new), fall back to club name (legacy)
+      const whereLabel = activity.venue === 'local'
+        ? 'VRC'
+        : (activity.location_venue_name ?? activity.location_club_name ?? activity.location_notes)
+      const mapsUrl = activity.venue === 'visitante'
+        ? (activity.location_venue_maps_url ?? (activity.location_club_name ? `https://maps.google.com/?q=${encodeURIComponent(activity.location_club_name)}` : null))
+        : null
       activityBanner = {
         label: `⚽ Partido${vsText ? ' — ' + vsText : ''}${venueText ? ' · ' + venueText : ''}`,
-        sub: where ? `Sede: ${where}` : '',
+        sub: whereLabel ? `Sede: ${whereLabel}` : '',
         color: 'bg-blue-50 border-blue-200 text-blue-800',
+        mapsUrl,
+        venueAddress: activity.location_venue_address,
       }
     } else {
       activityBanner = {
@@ -86,7 +94,26 @@ export default async function SessionPage({ params }: PageProps) {
         <div className={`mx-4 mt-4 rounded-xl border px-4 py-2.5 ${activityBanner.color}`}>
           <p className="text-sm font-semibold">{activityBanner.label}</p>
           {activityBanner.sub && (
-            <p className="text-xs mt-0.5 opacity-80">{activityBanner.sub}</p>
+            activityBanner.mapsUrl ? (
+              <div className="mt-1 flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs opacity-80">{activityBanner.sub}</p>
+                  {activityBanner.venueAddress && (
+                    <p className="text-xs opacity-60 mt-0.5">{activityBanner.venueAddress}</p>
+                  )}
+                </div>
+                <a
+                  href={activityBanner.mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 bg-blue-600 text-white text-xs font-medium rounded-lg"
+                >
+                  📍 Maps
+                </a>
+              </div>
+            ) : (
+              <p className="text-xs mt-0.5 opacity-80">{activityBanner.sub}</p>
+            )
           )}
         </div>
       )}

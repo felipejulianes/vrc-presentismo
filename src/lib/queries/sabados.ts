@@ -27,6 +27,11 @@ export type DivisionActivity = {
   location_club_id: string | null
   location_club_name: string | null
   location_notes: string | null
+  // Sede específica (club_venues)
+  location_venue_id: string | null
+  location_venue_name: string | null
+  location_venue_address: string | null
+  location_venue_maps_url: string | null
   bus_id: string | null
   bus_label: string | null
   bus_driver_phone: string | null
@@ -76,43 +81,60 @@ export async function getAllOpponentClubs(): Promise<OpponentClub[]> {
   return data ?? []
 }
 
-export async function getActivitiesForDate(date: string): Promise<DivisionActivity[]> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('division_activities')
-    .select(`
-      id, activity_date, division_id, activity_type, venue,
-      opponent_club_id, opponent_club_ids, location_club_id, location_notes, bus_id,
-      opponent_clubs:opponent_club_id(name),
-      location_club:location_club_id(name),
-      event_buses(label, driver_phone)
-    `)
-    .eq('activity_date', date)
-
-  const pickName = (v: unknown): string | null => {
+function mapActivity(r: Record<string, unknown>): DivisionActivity {
+  const pickStr = (v: unknown, field: string): string | null => {
     if (!v) return null
-    if (Array.isArray(v)) return (v[0] as Record<string, string>)?.name ?? null
-    return (v as Record<string, string>)?.name ?? null
+    if (Array.isArray(v)) return (v[0] as Record<string, string>)?.[field] ?? null
+    return (v as Record<string, string>)?.[field] ?? null
   }
-
-  return (data ?? []).map((r: Record<string, unknown>) => ({
+  return {
     id: r.id as string,
     activity_date: r.activity_date as string,
     division_id: r.division_id as string,
     activity_type: r.activity_type as 'partido' | 'entrenamiento',
     venue: r.venue as 'local' | 'visitante' | null,
     opponent_club_id: r.opponent_club_id as string | null,
-    opponent_club_name: pickName(r.opponent_clubs),
+    opponent_club_name: pickStr(r.opponent_clubs, 'name'),
     opponent_club_ids: (r.opponent_club_ids as string[] | null) ?? [],
     location_club_id: r.location_club_id as string | null,
-    location_club_name: pickName(r.location_club),
+    location_club_name: pickStr(r.location_club, 'name'),
     location_notes: r.location_notes as string | null,
+    location_venue_id: r.location_venue_id as string | null,
+    location_venue_name: pickStr(r.location_venue, 'name'),
+    location_venue_address: pickStr(r.location_venue, 'address'),
+    location_venue_maps_url: pickStr(r.location_venue, 'maps_url'),
     bus_id: r.bus_id as string | null,
-    bus_label: pickName(r.event_buses) ?? (Array.isArray(r.event_buses) ? r.event_buses[0]?.label : (r.event_buses as Record<string,string>)?.label) ?? null,
-    bus_driver_phone: Array.isArray(r.event_buses)
-      ? (r.event_buses[0]?.driver_phone ?? null)
-      : ((r.event_buses as Record<string, string> | null)?.driver_phone ?? null),
-  }))
+    bus_label: Array.isArray(r.event_buses) ? (r.event_buses[0]?.label ?? null) : ((r.event_buses as Record<string, string> | null)?.label ?? null),
+    bus_driver_phone: Array.isArray(r.event_buses) ? (r.event_buses[0]?.driver_phone ?? null) : ((r.event_buses as Record<string, string> | null)?.driver_phone ?? null),
+  }
+}
+
+const ACTIVITY_SELECT = `
+  id, activity_date, division_id, activity_type, venue,
+  opponent_club_id, opponent_club_ids, location_club_id, location_notes, bus_id,
+  location_venue_id,
+  opponent_clubs:opponent_club_id(name),
+  location_club:location_club_id(name),
+  location_venue:location_venue_id(name, address, maps_url),
+  event_buses(label, driver_phone)
+`
+
+export async function getActivitiesForDate(date: string): Promise<DivisionActivity[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('division_activities')
+    .select(ACTIVITY_SELECT)
+    .eq('activity_date', date)
+  return (data ?? []).map((r: Record<string, unknown>) => mapActivity(r))
+}
+
+export async function getActivitiesForDivision(divisionId: string): Promise<DivisionActivity[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('division_activities')
+    .select(ACTIVITY_SELECT)
+    .eq('division_id', divisionId)
+  return (data ?? []).map((r: Record<string, unknown>) => mapActivity(r))
 }
 
 export async function getActivityForDivisionDate(

@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import {
   getActivitiesForDate,
   getBusesForDate,
-  getOpponentClubs,
+  getAllClubsFull,
 } from '@/lib/queries/sabados'
 import { SabadoSetupGrid } from '@/components/admin/SabadoSetupGrid'
 import { BusesManager } from '@/components/admin/BusesManager'
@@ -43,7 +43,7 @@ export default async function SabadoDatePage({ params }: PageProps) {
       .then(r => r.data ?? []),
     getActivitiesForDate(date),
     getBusesForDate(date),
-    getOpponentClubs(),
+    getAllClubsFull(),
   ])
 
   return (
