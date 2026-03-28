@@ -54,26 +54,26 @@ export async function GET(
     }
   }
 
-  // Build Excel rows
+  // Build Excel rows — orden: Jugador | Q | % | fechas...
   const header = [
     'Jugador',
-    ...sessions.map(s => s.session_date),
-    'Presentes',
-    'Total',
+    'Q',
     '% Asistencia',
+    ...sessions.map(s => s.session_date),
   ]
 
   const rows = players.map(player => {
+    const t = playerTotals[player.id]
+    const pct = t.total > 0 ? Math.round((t.present / t.total) * 100) : 0
     const cells: (string | number)[] = [
       `${player.last_name}, ${player.first_name}${player.inactivo ? ' (inactivo)' : ''}`,
+      t.present,
+      pct,
     ]
     for (const s of sessions) {
       const val = lookup[`${player.id}__${s.id}`]
       cells.push(val === true ? 'P' : val === false ? 'A' : '')
     }
-    const t = playerTotals[player.id]
-    const pct = t.total > 0 ? Math.round((t.present / t.total) * 100) : 0
-    cells.push(t.present, t.total, pct)
     return cells
   })
 
@@ -86,10 +86,9 @@ export async function GET(
   })
   const footerRow = [
     'TOTAL PRESENTES',
+    '',
+    '',
     ...perSessionPresent.map((p, i) => `${p}/${perSessionTotal[i]}`),
-    '',
-    '',
-    '',
   ]
 
   const wsData = [header, ...rows, footerRow]
@@ -98,10 +97,9 @@ export async function GET(
   // Column widths
   ws['!cols'] = [
     { wch: 30 },
-    ...sessions.map(() => ({ wch: 12 })),
-    { wch: 10 },
-    { wch: 8 },
+    { wch: 6 },
     { wch: 12 },
+    ...sessions.map(() => ({ wch: 12 })),
   ]
 
   const wb = XLSX.utils.book_new()

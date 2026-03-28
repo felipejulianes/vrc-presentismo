@@ -122,6 +122,12 @@ export default async function AttendanceTablaPage({ params }: PageProps) {
               <th className="sticky left-0 bg-gray-50 z-10 px-3 py-2 text-left font-semibold text-gray-700 border border-gray-200 min-w-[140px]">
                 Jugador
               </th>
+              <th className="px-3 py-2 text-center font-semibold text-gray-700 border border-gray-200 min-w-[40px]">
+                Q
+              </th>
+              <th className="px-3 py-2 text-center font-semibold text-gray-700 border border-gray-200 min-w-[50px]">
+                %
+              </th>
               {sessions.map(s => (
                 <th
                   key={s.id}
@@ -131,9 +137,6 @@ export default async function AttendanceTablaPage({ params }: PageProps) {
                   {fmtDate(s.session_date)}
                 </th>
               ))}
-              <th className="px-3 py-2 text-center font-semibold text-gray-700 border border-gray-200 min-w-[60px]">
-                %
-              </th>
             </tr>
           </thead>
           <tbody>
@@ -147,6 +150,12 @@ export default async function AttendanceTablaPage({ params }: PageProps) {
                   <td className={`sticky left-0 z-10 px-3 py-1.5 font-medium border border-gray-200 ${pi % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${player.inactivo ? 'text-gray-400' : 'text-gray-800'}`}>
                     {player.last_name}, {player.first_name}
                     {player.inactivo && <span className="ml-1 text-gray-300">(inactivo)</span>}
+                  </td>
+                  <td className="px-3 py-1.5 text-center font-medium border border-gray-200 text-gray-700">
+                    {totals.present}
+                  </td>
+                  <td className={`px-3 py-1.5 text-center font-bold border border-gray-200 ${pctColor}`}>
+                    {pct !== null ? `${pct}%` : '—'}
                   </td>
                   {sessions.map(s => {
                     const val = lookup[`${player.id}__${s.id}`]
@@ -162,9 +171,6 @@ export default async function AttendanceTablaPage({ params }: PageProps) {
                       </td>
                     )
                   })}
-                  <td className={`px-3 py-1.5 text-center font-bold border border-gray-200 ${pctColor}`}>
-                    {pct !== null ? `${pct}%` : '—'}
-                  </td>
                 </tr>
               )
             })}
@@ -174,6 +180,8 @@ export default async function AttendanceTablaPage({ params }: PageProps) {
               <td className="sticky left-0 bg-gray-100 z-10 px-3 py-1.5 font-semibold text-gray-700 border border-gray-200 text-xs">
                 Presentes
               </td>
+              <td className="border border-gray-200" />
+              <td className="border border-gray-200" />
               {sessions.map(s => {
                 const t = sessionTotals[s.id]
                 return (
@@ -182,7 +190,6 @@ export default async function AttendanceTablaPage({ params }: PageProps) {
                   </td>
                 )
               })}
-              <td className="border border-gray-200" />
             </tr>
           </tfoot>
         </table>
