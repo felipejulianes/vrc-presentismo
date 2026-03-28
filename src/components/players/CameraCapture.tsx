@@ -21,7 +21,17 @@ export function CameraCapture({ onCapture, preview }: CameraCaptureProps) {
       })
       if (videoRef.current) {
         videoRef.current.srcObject = stream
+        // On mobile (iOS/Android PWA), autoPlay alone is not enough — must call play() explicitly
+        try {
+          await videoRef.current.play()
+        } catch {
+          // play() rejection is non-fatal, video may still render
+        }
         setStreaming(true)
+      } else {
+        // videoRef not ready yet — stop tracks to avoid leak
+        stream.getTracks().forEach(t => t.stop())
+        setCameraError(true)
       }
     } catch {
       setCameraError(true)
