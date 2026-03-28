@@ -13,6 +13,7 @@ export type EventBus = {
   event_date: string
   label: string
   driver_phone: string | null
+  patente: string | null
 }
 
 export type DivisionActivity = {
@@ -37,6 +38,7 @@ export type DivisionActivity = {
   bus_id: string | null
   bus_label: string | null
   bus_driver_phone: string | null
+  bus_patente: string | null
 }
 
 export type TercerTiempoReport = {
@@ -108,6 +110,7 @@ function mapActivity(r: Record<string, unknown>): DivisionActivity {
     bus_id: r.bus_id as string | null,
     bus_label: Array.isArray(r.event_buses) ? (r.event_buses[0]?.label ?? null) : ((r.event_buses as Record<string, string> | null)?.label ?? null),
     bus_driver_phone: Array.isArray(r.event_buses) ? (r.event_buses[0]?.driver_phone ?? null) : ((r.event_buses as Record<string, string> | null)?.driver_phone ?? null),
+    bus_patente: Array.isArray(r.event_buses) ? (r.event_buses[0]?.patente ?? null) : ((r.event_buses as Record<string, string> | null)?.patente ?? null),
   }
 }
 
@@ -118,7 +121,7 @@ const ACTIVITY_SELECT = `
   opponent_clubs:opponent_club_id(name),
   location_club:location_club_id(name),
   location_venue:location_venue_id(name, address, maps_url),
-  event_buses(label, driver_phone)
+  event_buses(label, driver_phone, patente)
 `
 
 export async function getActivitiesForDate(date: string): Promise<DivisionActivity[]> {
@@ -151,7 +154,7 @@ export async function getBusesForDate(date: string): Promise<EventBus[]> {
   const supabase = await createClient()
   const { data } = await supabase
     .from('event_buses')
-    .select('id, event_date, label, driver_phone')
+    .select('id, event_date, label, driver_phone, patente')
     .eq('event_date', date)
     .order('label')
   return data ?? []

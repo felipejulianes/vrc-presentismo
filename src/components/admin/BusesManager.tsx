@@ -14,6 +14,7 @@ export function BusesManager({ date, buses: initialBuses }: Props) {
   const [adding, setAdding] = useState(false)
   const [label, setLabel] = useState('')
   const [phone, setPhone] = useState('')
+  const [patente, setPatente] = useState('')
   const [isPending, startTransition] = useTransition()
 
   function handleAdd() {
@@ -22,12 +23,13 @@ export function BusesManager({ date, buses: initialBuses }: Props) {
     fd.append('event_date', date)
     fd.append('label', label.trim())
     fd.append('driver_phone', phone.trim())
+    fd.append('patente', patente.trim())
     startTransition(async () => {
       const res = await saveBus(fd)
       if (!res.error) {
-        // Optimistically reset — page will revalidate
         setLabel('')
         setPhone('')
+        setPatente('')
         setAdding(false)
       }
     })
@@ -49,7 +51,14 @@ export function BusesManager({ date, buses: initialBuses }: Props) {
       {buses.map(bus => (
         <div key={bus.id} className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3">
           <div className="flex-1">
-            <p className="text-sm font-semibold text-gray-800">{bus.label}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-gray-800">{bus.label}</p>
+              {bus.patente && (
+                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-mono">
+                  {bus.patente}
+                </span>
+              )}
+            </div>
             {bus.driver_phone && (
               <a href={`tel:${bus.driver_phone}`} className="text-xs text-blue-600">
                 📞 {bus.driver_phone}
@@ -70,23 +79,30 @@ export function BusesManager({ date, buses: initialBuses }: Props) {
 
       {adding ? (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-2">
+          <input
+            type="text"
+            value={label}
+            onChange={e => setLabel(e.target.value)}
+            placeholder='Nombre del bondi — Ej: "Bondi 1"'
+            className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-vrc-green"
+            autoFocus
+          />
           <div className="flex gap-2">
             <input
-              type="text"
-              value={label}
-              onChange={e => setLabel(e.target.value)}
-              placeholder='Ej: "Bondi 1"'
+              type="tel"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              placeholder="Tel. chofer (opcional)"
               className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-vrc-green"
-              autoFocus
+            />
+            <input
+              type="text"
+              value={patente}
+              onChange={e => setPatente(e.target.value.toUpperCase())}
+              placeholder="Patente"
+              className="w-28 px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-vrc-green"
             />
           </div>
-          <input
-            type="tel"
-            value={phone}
-            onChange={e => setPhone(e.target.value)}
-            placeholder="Tel. chofer (opcional)"
-            className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-vrc-green"
-          />
           <div className="flex gap-2">
             <button
               onClick={handleAdd}

@@ -49,6 +49,7 @@ export async function saveBus(formData: FormData) {
   const event_date = formData.get('event_date') as string
   const label = (formData.get('label') as string)?.trim()
   const driver_phone = (formData.get('driver_phone') as string)?.trim() || null
+  const patente = (formData.get('patente') as string)?.trim() || null
 
   if (!label || !event_date) return { error: 'Faltan datos' }
 
@@ -58,13 +59,13 @@ export async function saveBus(formData: FormData) {
   if (id) {
     const { error } = await supabase
       .from('event_buses')
-      .update({ label, driver_phone })
+      .update({ label, driver_phone, patente })
       .eq('id', id)
     if (error) return { error: error.message }
   } else {
     const { error } = await supabase
       .from('event_buses')
-      .insert({ event_date, label, driver_phone, created_by: user?.id })
+      .insert({ event_date, label, driver_phone, patente, created_by: user?.id })
     if (error) return { error: error.message }
   }
 

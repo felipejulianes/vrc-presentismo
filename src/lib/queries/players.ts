@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import type { Player, Division } from '@/types'
 
-const PLAYER_FIELDS = 'id, first_name, last_name, dni, birth_date, photo_url, division_id, active, inactivo, parent_name, parent_phone, sobrenombre, fecha_alta, colegio, como_conocio'
+const PLAYER_FIELDS = 'id, first_name, last_name, dni, birth_date, photo_url, division_id, active, inactivo, parent_name, parent_phone, parent_name_2, parent_phone_2, sobrenombre, fecha_alta, colegio, como_conocio'
 
 export async function getPlayersByDivision(divisionId: string): Promise<Player[]> {
   const supabase = await createClient()

@@ -8,7 +8,23 @@
       "Bash(rm -rf \"C:\\\\Users\\\\felip\\\\OneDrive\\\\Documentos\\\\dev\\\\VRC\\\\presentismo-app\")",
       "Bash(npm install:*)",
       "Bash(npm run:*)",
-      "Bash(cmd /c \"rd /s /q \"\"C:\\\\Users\\\\felip\\\\OneDrive\\\\Documentos\\\\dev\\\\VRC\\\\App presentismo\\\\.next\"\"\")"
+      "Bash(cmd /c \"rd /s /q \"\"C:\\\\Users\\\\felip\\\\OneDrive\\\\Documentos\\\\dev\\\\VRC\\\\App presentismo\\\\.next\"\"\")",
+      "Read(//c/Users/felip/**)",
+      "Bash(python3 -c \":*)",
+      "Bash(pip install:*)",
+      "Read(//c//**)",
+      "Bash(python3 -c \"import sys; data=sys.stdin.buffer.read\\(\\); sys.stdout.buffer.write\\(data\\)\")",
+      "Bash(python3:*)",
+      "Read(//tmp/**)",
+      "Bash(python -c \"import pdf2image; print\\(''pdf2image ok''\\)\")",
+      "Bash(python -c \"import pytesseract; print\\(''pytesseract ok''\\)\")",
+      "Bash(python -c \"import PIL; print\\(''PIL ok''\\)\")",
+      "Bash(winget install:*)",
+      "Bash(cmd /c \"C:\\\\Users\\\\felip\\\\Downloads\\\\tesseract-setup.exe /SILENT /VERYSILENT /NORESTART /DIR=\"\"C:\\\\Users\\\\felip\\\\AppData\\\\Local\\\\Tesseract-OCR\"\"\")",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(powershell -Command \"Copy-Item ''C:\\\\Users\\\\felip\\\\Downloads\\\\spa.traineddata'' ''C:\\\\Program Files\\\\Tesseract-OCR\\\\tessdata\\\\spa.traineddata'' -Force\")",
+      "Bash(ls \"C:\\\\Users\\\\felip\\\\OneDrive\\\\Documentos\\\\dev\\\\VRC\\\\App presentismo\\\\supabase\\\\migrations\"\" | grep -E \"01[3-6] \")",
+      "Bash(ls \"C:\\\\Users\\\\felip\\\\OneDrive\\\\Documentos\\\\dev\\\\VRC\\\\App presentismo\\\\src\\\\app\\\\\\(app\\)\\\\admin\\\\sabados\")"
     ]
   }
 }

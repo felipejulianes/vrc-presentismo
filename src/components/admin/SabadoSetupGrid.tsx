@@ -345,7 +345,7 @@ function DivisionCard({ date, division, activity, clubs, buses }: CardProps) {
   const isPartido = type === 'partido'
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+    <div className="bg-white border border-gray-200 rounded-xl">
       {/* Card header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <span className="font-bold text-gray-900">{division.name}</span>

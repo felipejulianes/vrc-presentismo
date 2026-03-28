@@ -62,6 +62,7 @@ export default async function SessionPage({ params }: PageProps) {
     coordinatorPhone?: string | null
     busLabel?: string | null
     busPhone?: string | null
+    busPatente?: string | null
   }
 
   let activityBanner: ActivityBanner | null = null
@@ -102,6 +103,7 @@ export default async function SessionPage({ params }: PageProps) {
     if (activity.bus_label) {
       activityBanner.busLabel = activity.bus_label
       activityBanner.busPhone = activity.bus_driver_phone
+      activityBanner.busPatente = activity.bus_patente ?? null
     }
   }
 
@@ -162,7 +164,14 @@ export default async function SessionPage({ params }: PageProps) {
           {/* Bondi */}
           {activityBanner.busLabel && (
             <div className="border-t border-current/20 pt-2 space-y-1.5">
-              <p className="text-xs font-medium opacity-80">🚌 {activityBanner.busLabel}</p>
+              <p className="text-xs font-medium opacity-80">
+                🚌 {activityBanner.busLabel}
+                {activityBanner.busPatente && (
+                  <span className="ml-2 font-mono bg-black/10 px-1.5 py-0.5 rounded text-[10px]">
+                    {activityBanner.busPatente}
+                  </span>
+                )}
+              </p>
               {activityBanner.busPhone && (
                 <div className="flex gap-2">
                   <a

@@ -68,6 +68,13 @@ export function PlayerCard({ player, present, onToggle }: PlayerCardProps) {
       }`}>
         {player.last_name}
       </span>
+      {player.sobrenombre && (
+        <span className={`text-[10px] text-center leading-tight italic ${
+          present ? 'text-green-500' : 'text-gray-300'
+        }`}>
+          &ldquo;{player.sobrenombre}&rdquo;
+        </span>
+      )}
     </button>
   )
 }

@@ -26,6 +26,8 @@ export function PlayerForm({ divisions, player, defaultDivisionId }: PlayerFormP
     birth_date: player?.birth_date ?? '',
     parent_name: player?.parent_name ?? '',
     parent_phone: player?.parent_phone ?? '',
+    parent_name_2: player?.parent_name_2 ?? '',
+    parent_phone_2: player?.parent_phone_2 ?? '',
     division_id: player?.division_id ?? defaultDivisionId ?? divisions[0]?.id ?? '',
     fecha_alta: player?.fecha_alta ?? todayStr,
     colegio: player?.colegio ?? '',
@@ -64,6 +66,8 @@ export function PlayerForm({ divisions, player, defaultDivisionId }: PlayerFormP
         birth_date: form.birth_date || null,
         parent_name: form.parent_name.trim() || null,
         parent_phone: form.parent_phone.trim() || null,
+        parent_name_2: form.parent_name_2.trim() || null,
+        parent_phone_2: form.parent_phone_2.trim() || null,
         division_id: form.division_id,
         fecha_alta: form.fecha_alta,
         colegio: form.colegio.trim() || null,
@@ -248,25 +252,42 @@ export function PlayerForm({ divisions, player, defaultDivisionId }: PlayerFormP
         </div>
       </div>
 
-      {/* Padre/Madre y Teléfono */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del padre/madre</label>
+      {/* Referente 1 (principal) */}
+      <div className="space-y-2">
+        <label className="block text-sm font-semibold text-gray-700">Referente principal</label>
         <input
           type="text"
           value={form.parent_name}
           onChange={e => set('parent_name', e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
-          placeholder="María González"
+          placeholder="Nombre completo"
         />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono (WhatsApp)</label>
         <input
           type="tel"
           value={form.parent_phone}
           onChange={e => set('parent_phone', e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
-          placeholder="1123456789"
+          placeholder="Teléfono / WhatsApp"
+          inputMode="numeric"
+        />
+      </div>
+
+      {/* Referente 2 (opcional) */}
+      <div className="space-y-2">
+        <label className="block text-sm font-semibold text-gray-700">Segundo referente <span className="font-normal text-gray-400">(opcional)</span></label>
+        <input
+          type="text"
+          value={form.parent_name_2}
+          onChange={e => set('parent_name_2', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+          placeholder="Nombre completo"
+        />
+        <input
+          type="tel"
+          value={form.parent_phone_2}
+          onChange={e => set('parent_phone_2', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+          placeholder="Teléfono / WhatsApp"
           inputMode="numeric"
         />
       </div>

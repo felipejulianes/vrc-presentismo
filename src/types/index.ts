@@ -20,6 +20,8 @@ export type Player = {
   inactivo: boolean
   parent_name: string | null
   parent_phone: string | null
+  parent_name_2: string | null
+  parent_phone_2: string | null
   sobrenombre: string | null
   fecha_alta: string
   colegio: string | null
