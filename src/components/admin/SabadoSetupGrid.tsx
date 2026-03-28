@@ -172,7 +172,7 @@ function GlobalSetup({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+    <div className="bg-white border border-gray-200 rounded-xl">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
         <p className="text-sm font-semibold text-gray-700">Para todas las divisiones</p>
@@ -264,24 +264,41 @@ function VenueRow({ date, division, activity, clubs, buses, onChange }: VenueRow
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  async function save(overrides: { v?: typeof venue; locVenue?: string; bus?: string } = {}) {
+  // Override individual por división
+  const [showOverride, setShowOverride] = useState(false)
+  const [overrideType, setOverrideType] = useState<'partido' | 'entrenamiento'>(activity.activity_type)
+  const [overrideOpponentIds, setOverrideOpponentIds] = useState<string[]>(activity.opponent_club_ids ?? [])
+  const [savingOverride, setSavingOverride] = useState(false)
+
+  async function save(overrides: { v?: typeof venue; locVenue?: string; bus?: string; type?: string; oppIds?: string[] } = {}) {
     const v = overrides.v ?? venue
     const locVenue = overrides.locVenue ?? locationVenueId
     const bus = overrides.bus ?? busId
+    const type = overrides.type ?? overrideType
+    const oppIds = overrides.oppIds ?? overrideOpponentIds
     setSaving(true)
     const fd = new FormData()
     fd.append('event_date', date)
     fd.append('division_id', division.id)
-    fd.append('activity_type', 'partido')
-    for (const id of (activity.opponent_club_ids ?? [])) fd.append('opponent_club_id', id)
-    if (v) fd.append('venue', v)
-    if (v === 'visitante' && locVenue) fd.append('location_venue_id', locVenue)
+    fd.append('activity_type', type)
+    if (type === 'partido') {
+      for (const id of oppIds) fd.append('opponent_club_id', id)
+      if (v) fd.append('venue', v)
+      if (v === 'visitante' && locVenue) fd.append('location_venue_id', locVenue)
+    }
     if (bus) fd.append('bus_id', bus)
     await saveDivisionActivity(fd)
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
-    onChange({ ...activity, venue: v as 'local' | 'visitante' | null, location_venue_id: locVenue || null, bus_id: bus || null })
+    onChange({ ...activity, activity_type: type as 'partido' | 'entrenamiento', opponent_club_ids: oppIds, venue: v as 'local' | 'visitante' | null, location_venue_id: locVenue || null, bus_id: bus || null })
+  }
+
+  async function saveOverride() {
+    setSavingOverride(true)
+    await save({ type: overrideType, oppIds: overrideOpponentIds, v: overrideType === 'entrenamiento' ? '' : venue })
+    setSavingOverride(false)
+    setShowOverride(false)
   }
 
   function handleVenue(v: 'local' | 'visitante') {
@@ -290,9 +307,10 @@ function VenueRow({ date, division, activity, clubs, buses, onChange }: VenueRow
     else save({ v })
   }
 
-  const opponentIds = activity.opponent_club_ids ?? []
+  const opponentIds = overrideOpponentIds
   const relevantClubs = clubs.filter(c => opponentIds.includes(c.id) && c.venues.length > 0)
   const otherClubs = clubs.filter(c => !opponentIds.includes(c.id) && c.venues.length > 0)
+  const isPartido = overrideType === 'partido'
 
   return (
     <div className="px-4 py-3 space-y-2">
@@ -300,31 +318,31 @@ function VenueRow({ date, division, activity, clubs, buses, onChange }: VenueRow
         {/* División name */}
         <span className="w-16 text-sm font-bold text-gray-800 flex-shrink-0">{division.name}</span>
 
-        {/* Local / Visitante toggle */}
-        <div className="flex gap-1.5 flex-1">
-          <button
-            onClick={() => handleVenue('local')}
-            disabled={saving}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-              venue === 'local'
-                ? 'bg-gray-800 text-white'
-                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-            }`}
-          >
-            Local
-          </button>
-          <button
-            onClick={() => handleVenue('visitante')}
-            disabled={saving}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-              venue === 'visitante'
-                ? 'bg-orange-500 text-white'
-                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-            }`}
-          >
-            Visita
-          </button>
-        </div>
+        {overrideType === 'entrenamiento' ? (
+          <span className="flex-1 text-xs text-gray-400 italic">Entrena</span>
+        ) : (
+          /* Local / Visitante toggle */
+          <div className="flex gap-1.5 flex-1">
+            <button
+              onClick={() => handleVenue('local')}
+              disabled={saving}
+              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+                venue === 'local' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+              }`}
+            >
+              Local
+            </button>
+            <button
+              onClick={() => handleVenue('visitante')}
+              disabled={saving}
+              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+                venue === 'visitante' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+              }`}
+            >
+              Visita
+            </button>
+          </div>
+        )}
 
         {/* Bondi */}
         {buses.length > 0 && (
@@ -338,15 +356,26 @@ function VenueRow({ date, division, activity, clubs, buses, onChange }: VenueRow
           </select>
         )}
 
-        {/* Status */}
-        <span className="w-12 text-right flex-shrink-0">
+        {/* Override toggle + status */}
+        <div className="flex items-center gap-2 flex-shrink-0">
           {saving && <span className="text-xs text-gray-400">...</span>}
           {saved && !saving && <span className="text-xs text-green-600">✓</span>}
-        </span>
+          <button
+            onClick={() => setShowOverride(v => !v)}
+            className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
+              showOverride
+                ? 'bg-amber-50 border-amber-300 text-amber-700'
+                : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600'
+            }`}
+            title="Configuración diferente para esta división"
+          >
+            ✎
+          </button>
+        </div>
       </div>
 
       {/* Sede visitante */}
-      {venue === 'visitante' && (
+      {isPartido && venue === 'visitante' && !showOverride && (
         <div className="pl-[76px]">
           <select
             value={locationVenueId}
@@ -361,9 +390,7 @@ function VenueRow({ date, division, activity, clubs, buses, onChange }: VenueRow
                 </option>
               ))
             )}
-            {relevantClubs.length > 0 && otherClubs.length > 0 && (
-              <option disabled>──────────</option>
-            )}
+            {relevantClubs.length > 0 && otherClubs.length > 0 && <option disabled>──────────</option>}
             {otherClubs.map(club =>
               club.venues.map(v => (
                 <option key={v.id} value={v.id}>
@@ -372,6 +399,49 @@ function VenueRow({ date, division, activity, clubs, buses, onChange }: VenueRow
               ))
             )}
           </select>
+        </div>
+      )}
+
+      {/* Panel de override individual */}
+      {showOverride && (
+        <div className="ml-[76px] p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+          <p className="text-xs font-semibold text-amber-700">Configuración solo para {division.name}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setOverrideType('entrenamiento'); setOverrideOpponentIds([]) }}
+              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+                overrideType === 'entrenamiento' ? 'bg-green-600 text-white' : 'bg-white border border-gray-200 text-gray-500'
+              }`}
+            >
+              🏃 Entrena
+            </button>
+            <button
+              onClick={() => setOverrideType('partido')}
+              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+                overrideType === 'partido' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-500'
+              }`}
+            >
+              ⚽ Partido
+            </button>
+          </div>
+          {overrideType === 'partido' && (
+            <MultiClubSelect clubs={clubs} selectedIds={overrideOpponentIds} onChange={setOverrideOpponentIds} />
+          )}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={() => setShowOverride(false)}
+              className="flex-1 py-2 text-xs rounded-lg bg-white border border-gray-200 text-gray-500"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={saveOverride}
+              disabled={savingOverride}
+              className="flex-1 py-2 text-xs rounded-lg bg-amber-600 text-white font-semibold disabled:opacity-50"
+            >
+              {savingOverride ? 'Guardando...' : 'Guardar'}
+            </button>
+          </div>
         </div>
       )}
     </div>
