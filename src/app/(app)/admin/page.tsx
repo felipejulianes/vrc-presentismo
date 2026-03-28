@@ -102,6 +102,18 @@ export default async function AdminPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Link>
+          <Link href="/admin/schools" className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 active:bg-gray-100">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🏫</span>
+              <div>
+                <p className="text-sm font-medium text-gray-900">Colegios</p>
+                <p className="text-xs text-gray-400">Gestionar lista y aliases de colegios</p>
+              </div>
+            </div>
+            <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
           <Link href="/admin/clubs" className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 active:bg-gray-100">
             <div className="flex items-center gap-3">
               <span className="text-xl">🏟️</span>

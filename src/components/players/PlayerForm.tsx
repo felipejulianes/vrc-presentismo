@@ -4,15 +4,18 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { CameraCapture } from './CameraCapture'
+import { SchoolCombobox } from './SchoolCombobox'
 import type { Player, Division } from '@/types'
+import type { School } from '@/lib/queries/schools'
 
 interface PlayerFormProps {
   divisions: Division[]
   player?: Player
   defaultDivisionId?: string
+  schools: School[]
 }
 
-export function PlayerForm({ divisions, player, defaultDivisionId }: PlayerFormProps) {
+export function PlayerForm({ divisions, player, defaultDivisionId, schools }: PlayerFormProps) {
   const router = useRouter()
   const isEdit = !!player
 
@@ -34,6 +37,11 @@ export function PlayerForm({ divisions, player, defaultDivisionId }: PlayerFormP
     como_conocio: player?.como_conocio ?? '',
     inactivo: player?.inactivo ?? false,
   })
+  // School combobox state (separate from form to handle id+name pair)
+  const [school, setSchool] = useState<{ id: string; name: string } | null>(
+    player?.school_id ? { id: player.school_id, name: player.colegio ?? '' } : null
+  )
+
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(player?.photo_url ?? null)
   const [saving, setSaving] = useState(false)
@@ -70,7 +78,8 @@ export function PlayerForm({ divisions, player, defaultDivisionId }: PlayerFormP
         parent_phone_2: form.parent_phone_2.trim() || null,
         division_id: form.division_id,
         fecha_alta: form.fecha_alta,
-        colegio: form.colegio.trim() || null,
+        colegio: (school?.name ?? form.colegio.trim()) || null,
+        school_id: school?.id ?? null,
         como_conocio: form.como_conocio || null,
         inactivo: form.inactivo,
       }
@@ -229,27 +238,21 @@ export function PlayerForm({ divisions, player, defaultDivisionId }: PlayerFormP
         </div>
       </div>
 
-      {/* Colegio y Fecha de alta */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Colegio</label>
-          <input
-            type="text"
-            value={form.colegio}
-            onChange={e => set('colegio', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
-            placeholder="San Ignacio"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de alta</label>
-          <input
-            type="date"
-            value={form.fecha_alta}
-            onChange={e => set('fecha_alta', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
-          />
-        </div>
+      {/* Colegio */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Colegio</label>
+        <SchoolCombobox schools={schools} value={school} onChange={setSchool} />
+      </div>
+
+      {/* Fecha de alta */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de alta</label>
+        <input
+          type="date"
+          value={form.fecha_alta}
+          onChange={e => set('fecha_alta', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+        />
       </div>
 
       {/* Referente 1 (principal) */}

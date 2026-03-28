@@ -25,6 +25,7 @@ export type Player = {
   sobrenombre: string | null
   fecha_alta: string
   colegio: string | null
+  school_id: string | null
   como_conocio: string | null
 }
 

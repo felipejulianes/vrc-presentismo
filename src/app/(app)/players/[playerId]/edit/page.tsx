@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getPlayerById, getDivisionsForUser } from '@/lib/queries/players'
+import { getSchools } from '@/lib/queries/schools'
 import { PlayerForm } from '@/components/players/PlayerForm'
 
 interface PageProps {
@@ -7,9 +8,10 @@ interface PageProps {
 }
 
 export default async function EditPlayerPage({ params }: PageProps) {
-  const [player, divisions] = await Promise.all([
+  const [player, divisions, schools] = await Promise.all([
     getPlayerById(params.playerId),
     getDivisionsForUser(),
+    getSchools(),
   ])
 
   if (!player) notFound()
@@ -22,7 +24,7 @@ export default async function EditPlayerPage({ params }: PageProps) {
         </h1>
         <p className="text-sm text-gray-500">Editar jugador</p>
       </div>
-      <PlayerForm divisions={divisions} player={player} />
+      <PlayerForm divisions={divisions} player={player} schools={schools} />
     </div>
   )
 }
