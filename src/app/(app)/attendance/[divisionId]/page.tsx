@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { MapsLink } from '@/components/attendance/MapsLink'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionsForDivision } from '@/lib/queries/attendance'
 import { getActivitiesForDivision } from '@/lib/queries/sabados'
@@ -196,16 +197,10 @@ function SessionCard({
           <div className="flex items-center gap-2 mt-0.5">
             <p className="text-xs text-blue-600 font-medium truncate">{activityInfo.label}</p>
             {activityInfo.mapsUrl && (
-              <a
+              <MapsLink
                 href={activityInfo.mapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                className="flex-shrink-0 text-blue-500 hover:text-blue-700"
                 title={activityInfo.venueLabel ?? 'Ver en Maps'}
-              >
-                📍
-              </a>
+              />
             )}
           </div>
         ) : (
