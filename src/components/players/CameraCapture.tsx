@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 
 interface CameraCaptureProps {
   onCapture: (blob: Blob) => void
@@ -10,8 +10,16 @@ interface CameraCaptureProps {
 export function CameraCapture({ onCapture, preview }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
   const [streaming, setStreaming] = useState(false)
   const [cameraError, setCameraError] = useState(false)
+
+  // Stop stream when component unmounts
+  useEffect(() => {
+    return () => {
+      streamRef.current?.getTracks().forEach(t => t.stop())
+    }
+  }, [])
 
   const startCamera = async () => {
     setCameraError(false)
@@ -19,29 +27,31 @@ export function CameraCapture({ onCapture, preview }: CameraCaptureProps) {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 640 } },
       })
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        // On mobile (iOS/Android PWA), autoPlay alone is not enough — must call play() explicitly
-        try {
-          await videoRef.current.play()
-        } catch {
-          // play() rejection is non-fatal, video may still render
+      streamRef.current = stream
+
+      // Show video element first so videoRef.current is available
+      setStreaming(true)
+
+      // Wait one tick for React to mount the video element, then assign + play
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          videoRef.current.play().catch(() => {
+            // play() rejection is non-fatal on some browsers
+          })
         }
-        setStreaming(true)
-      } else {
-        // videoRef not ready yet — stop tracks to avoid leak
-        stream.getTracks().forEach(t => t.stop())
-        setCameraError(true)
-      }
+      }, 0)
     } catch {
       setCameraError(true)
     }
   }
 
   const stopCamera = () => {
-    const stream = videoRef.current?.srcObject as MediaStream | null
-    stream?.getTracks().forEach(t => t.stop())
-    if (videoRef.current) videoRef.current.srcObject = null
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current = null
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
     setStreaming(false)
   }
 
@@ -83,35 +93,33 @@ export function CameraCapture({ onCapture, preview }: CameraCaptureProps) {
         </div>
       )}
 
-      {/* Visor de cámara */}
-      {streaming && (
-        <div className="space-y-2">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full rounded-xl aspect-square object-cover"
-          />
-          <canvas ref={canvasRef} className="hidden" />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={capture}
-              className="flex-1 py-2 bg-green-700 text-white rounded-xl text-sm font-semibold"
-            >
-              Sacar foto
-            </button>
-            <button
-              type="button"
-              onClick={stopCamera}
-              className="px-4 py-2 border border-gray-300 rounded-xl text-sm text-gray-600"
-            >
-              Cancelar
-            </button>
-          </div>
+      {/* Visor de cámara — siempre en el DOM para que videoRef exista, oculto cuando no se usa */}
+      <div className={streaming ? 'space-y-2' : 'hidden'}>
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="w-full rounded-xl aspect-square object-cover"
+        />
+        <canvas ref={canvasRef} className="hidden" />
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={capture}
+            className="flex-1 py-2 bg-green-700 text-white rounded-xl text-sm font-semibold"
+          >
+            Sacar foto
+          </button>
+          <button
+            type="button"
+            onClick={stopCamera}
+            className="px-4 py-2 border border-gray-300 rounded-xl text-sm text-gray-600"
+          >
+            Cancelar
+          </button>
         </div>
-      )}
+      </div>
 
       {/* Botones de acción (cuando no está la cámara activa) */}
       {!streaming && (
