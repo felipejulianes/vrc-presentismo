@@ -37,7 +37,7 @@ export function SabadoSetupList({ date, divisions, activities, clubs: initialClu
     startTransition(async () => {
       const res = await addOpponentClub(newClubName.trim())
       if (res.club) {
-        setClubs(prev => [...prev, { id: res.club!.id, name: res.club!.name, active: true }])
+        setClubs(prev => [...prev, { id: res.club!.id, name: res.club!.name, active: true, coordinator_name: null, coordinator_phone: null }])
         setNewClubName('')
         setAddingClub(false)
       }

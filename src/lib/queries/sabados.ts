@@ -4,6 +4,8 @@ export type OpponentClub = {
   id: string
   name: string
   active: boolean
+  coordinator_name: string | null
+  coordinator_phone: string | null
 }
 
 export type EventBus = {
@@ -66,7 +68,7 @@ export async function getOpponentClubs(): Promise<OpponentClub[]> {
   const supabase = await createClient()
   const { data } = await supabase
     .from('opponent_clubs')
-    .select('id, name, active')
+    .select('id, name, active, coordinator_name, coordinator_phone')
     .eq('active', true)
     .order('name')
   return data ?? []
@@ -76,7 +78,7 @@ export async function getAllOpponentClubs(): Promise<OpponentClub[]> {
   const supabase = await createClient()
   const { data } = await supabase
     .from('opponent_clubs')
-    .select('id, name, active')
+    .select('id, name, active, coordinator_name, coordinator_phone')
     .order('name')
   return data ?? []
 }
