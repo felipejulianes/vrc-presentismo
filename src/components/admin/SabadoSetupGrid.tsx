@@ -68,20 +68,12 @@ export function SabadoSetupGrid({ date, divisions, activities: initialActivities
           <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
             {divisions.map(div => {
               const activity = activityByDiv[div.id]
-              if (!activity || activity.activity_type !== 'partido') {
-                return (
-                  <div key={div.id} className="flex items-center px-4 py-3 gap-3">
-                    <span className="w-16 text-sm font-semibold text-gray-400">{div.name}</span>
-                    <span className="text-xs text-gray-300 italic">sin partido</span>
-                  </div>
-                )
-              }
               return (
                 <VenueRow
                   key={div.id}
                   date={date}
                   division={div}
-                  activity={activity}
+                  activity={activity ?? null}
                   clubs={clubs}
                   buses={buses}
                   onChange={(updated) => handleActivityChange(div.id, updated)}
@@ -251,23 +243,24 @@ function GlobalSetup({
 interface VenueRowProps {
   date: string
   division: Division
-  activity: DivisionActivity
+  activity: DivisionActivity | null
   clubs: OpponentClubFull[]
   buses: EventBus[]
   onChange: (updated: DivisionActivity | null) => void
 }
 
 function VenueRow({ date, division, activity, clubs, buses, onChange }: VenueRowProps) {
-  const [venue, setVenue] = useState<'local' | 'visitante' | ''>(activity.venue ?? '')
-  const [locationVenueId, setLocationVenueId] = useState(activity.location_venue_id ?? '')
-  const [busId, setBusId] = useState(activity.bus_id ?? '')
+  const [venue, setVenue] = useState<'local' | 'visitante' | ''>(activity?.venue ?? '')
+  const [locationVenueId, setLocationVenueId] = useState(activity?.location_venue_id ?? '')
+  const [busId, setBusId] = useState(activity?.bus_id ?? '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [showAllVenues, setShowAllVenues] = useState(false)
 
   // Override individual por división
   const [showOverride, setShowOverride] = useState(false)
-  const [overrideType, setOverrideType] = useState<'partido' | 'entrenamiento'>(activity.activity_type)
-  const [overrideOpponentIds, setOverrideOpponentIds] = useState<string[]>(activity.opponent_club_ids ?? [])
+  const [overrideType, setOverrideType] = useState<'partido' | 'entrenamiento'>(activity?.activity_type ?? 'entrenamiento')
+  const [overrideOpponentIds, setOverrideOpponentIds] = useState<string[]>(activity?.opponent_club_ids ?? [])
   const [savingOverride, setSavingOverride] = useState(false)
 
   async function save(overrides: { v?: typeof venue; locVenue?: string; bus?: string; type?: string; oppIds?: string[] } = {}) {
@@ -291,7 +284,26 @@ function VenueRow({ date, division, activity, clubs, buses, onChange }: VenueRow
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
-    onChange({ ...activity, activity_type: type as 'partido' | 'entrenamiento', opponent_club_ids: oppIds, venue: v as 'local' | 'visitante' | null, location_venue_id: locVenue || null, bus_id: bus || null })
+    onChange({ ...(activity ?? {
+      id: crypto.randomUUID(),
+      activity_date: date,
+      division_id: division.id,
+      opponent_club_id: null,
+      opponent_club_name: null,
+      opponent_club_ids: [],
+      location_club_id: null,
+      location_club_name: null,
+      location_notes: null,
+      location_venue_id: null,
+      location_venue_name: null,
+      location_venue_address: null,
+      location_venue_maps_url: null,
+      bus_id: null,
+      bus_label: null,
+      bus_driver_phone: null,
+      bus_patente: null,
+      venue: null,
+    }), activity_type: type as 'partido' | 'entrenamiento', opponent_club_ids: oppIds, venue: v as 'local' | 'visitante' | null, location_venue_id: locVenue || null, bus_id: bus || null })
   }
 
   async function saveOverride() {
@@ -376,7 +388,7 @@ function VenueRow({ date, division, activity, clubs, buses, onChange }: VenueRow
 
       {/* Sede visitante */}
       {isPartido && venue === 'visitante' && !showOverride && (
-        <div className="pl-[76px]">
+        <div className="pl-[76px] space-y-1">
           <select
             value={locationVenueId}
             onChange={e => { setLocationVenueId(e.target.value); save({ locVenue: e.target.value }) }}
@@ -390,8 +402,10 @@ function VenueRow({ date, division, activity, clubs, buses, onChange }: VenueRow
                 </option>
               ))
             )}
-            {relevantClubs.length > 0 && otherClubs.length > 0 && <option disabled>──────────</option>}
-            {otherClubs.map(club =>
+            {showAllVenues && relevantClubs.length > 0 && otherClubs.length > 0 && (
+              <option disabled>──────────</option>
+            )}
+            {showAllVenues && otherClubs.map(club =>
               club.venues.map(v => (
                 <option key={v.id} value={v.id}>
                   {club.venues.length > 1 ? `${club.name} — ${v.name}` : club.name}
@@ -399,6 +413,14 @@ function VenueRow({ date, division, activity, clubs, buses, onChange }: VenueRow
               ))
             )}
           </select>
+          {!showAllVenues && otherClubs.length > 0 && (
+            <button
+              onClick={() => setShowAllVenues(true)}
+              className="text-xs text-gray-400 underline"
+            >
+              Ver todas las sedes ({otherClubs.length} más)
+            </button>
+          )}
         </div>
       )}
 
