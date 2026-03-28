@@ -98,10 +98,14 @@ function MultiClubSelect({
   onChange: (ids: string[]) => void
 }) {
   const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
   const ref = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!open) return
+    if (!open) { setSearch(''); return }
+    // Auto-focus search when dropdown opens
+    setTimeout(() => searchRef.current?.focus(), 0)
     function onClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
@@ -119,11 +123,15 @@ function MultiClubSelect({
     : `${selectedNames[0]} +${selectedNames.length - 1}`
 
   const selectedClubs = clubs.filter(c => selectedIds.includes(c.id))
-  const otherClubs = clubs.filter(c => !selectedIds.includes(c.id))
+  const q = search.toLowerCase().trim()
+  // Unselected clubs — filtered by search, selected always shown
+  const otherClubs = clubs.filter(c =>
+    !selectedIds.includes(c.id) && (q === '' || c.name.toLowerCase().includes(q))
+  )
 
   return (
     <div ref={ref} className="relative">
-      {/* Trigger — mismo estilo que <select> nativo */}
+      {/* Trigger */}
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
@@ -140,9 +148,33 @@ function MultiClubSelect({
       </button>
 
       {open && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg py-1">
-          <p className="text-xs text-gray-400 px-3 pt-1 pb-1.5 border-b border-gray-100">Seleccioná los rivales</p>
-          <div className="max-h-52 overflow-y-auto">
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+          {/* Search input */}
+          <div className="px-3 pt-2.5 pb-2 border-b border-gray-100">
+            <div className="flex items-center gap-2 px-2.5 py-2 bg-gray-50 rounded-lg border border-gray-200">
+              <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+              </svg>
+              <input
+                ref={searchRef}
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar club..."
+                className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 outline-none"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="text-gray-400 hover:text-gray-600">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="max-h-52 overflow-y-auto py-1">
+            {/* Selected clubs — always visible, not filtered */}
             {selectedClubs.map(c => (
               <label key={c.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-blue-50 cursor-pointer bg-blue-50/50">
                 <input
@@ -157,6 +189,7 @@ function MultiClubSelect({
             {selectedClubs.length > 0 && otherClubs.length > 0 && (
               <div className="border-t border-gray-100 my-0.5" />
             )}
+            {/* Unselected clubs — filtered by search */}
             {otherClubs.map(c => (
               <label key={c.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 cursor-pointer">
                 <input
@@ -168,7 +201,11 @@ function MultiClubSelect({
                 <span className="text-sm text-gray-700">{c.name}</span>
               </label>
             ))}
+            {otherClubs.length === 0 && selectedClubs.length === 0 && (
+              <p className="text-xs text-gray-400 text-center py-4">Sin resultados</p>
+            )}
           </div>
+
           <div className="border-t border-gray-100 px-3 py-2">
             <button onClick={() => setOpen(false)} className="text-sm font-semibold text-vrc-green">
               Listo
