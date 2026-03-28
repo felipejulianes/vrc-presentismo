@@ -59,16 +59,29 @@ export function SabadoSetupGrid({ date, divisions, activities: initialActivities
         onApplied={setActivities}
       />
 
-      {/* ② Localía — kanban responsive */}
+      {/* ② Localía por división */}
       {anyPartido && (
-        <VenueKanban
-          date={date}
-          divisions={divisions}
-          activities={activities}
-          clubs={clubs}
-          buses={buses}
-          onActivityChange={handleActivityChange}
-        />
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1">
+            Localía por división
+          </p>
+          <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
+            {divisions.map(div => {
+              const activity = activities.find(a => a.division_id === div.id) ?? null
+              return (
+                <VenueRow
+                  key={div.id}
+                  date={date}
+                  division={div}
+                  activity={activity}
+                  clubs={clubs}
+                  buses={buses}
+                  onChange={(updated) => handleActivityChange(div.id, updated)}
+                />
+              )
+            })}
+          </div>
+        </div>
       )}
     </div>
   )
@@ -235,335 +248,231 @@ function GlobalSetup({
   )
 }
 
-// ── VenueKanban — asignador de sedes responsive ───────────────
+// ── VenueRow — fila compacta de localía por división ──────────
 
-type Bucket = {
-  key: string
-  label: string
-  icon: string
-  address?: string | null
-  mapsUrl?: string | null
-  venueId?: string | null
-}
-
-const EMPTY_ACTIVITY_BASE = {
-  opponent_club_id: null,
-  opponent_club_name: null,
-  opponent_club_ids: [] as string[],
-  location_club_id: null,
-  location_club_name: null,
-  location_notes: null,
-  location_venue_id: null,
-  location_venue_name: null,
-  location_venue_address: null,
-  location_venue_maps_url: null,
-  bus_id: null,
-  bus_label: null,
-  bus_driver_phone: null,
-  bus_patente: null,
-  venue: null as 'local' | 'visitante' | null,
-}
-
-function VenueKanban({
-  date, divisions, activities, clubs, buses, onActivityChange,
-}: {
+interface VenueRowProps {
   date: string
-  divisions: Division[]
-  activities: DivisionActivity[]
+  division: Division
+  activity: DivisionActivity | null
   clubs: OpponentClubFull[]
   buses: EventBus[]
-  onActivityChange: (divisionId: string, updated: DivisionActivity | null) => void
-}) {
-  // Compute unique opponent clubs across all activities
-  const _allIds = activities.flatMap(a => a.opponent_club_ids ?? [])
-  const allOpponentIds = _allIds.filter((id, i) => _allIds.indexOf(id) === i)
-  const opponentClubs = clubs.filter(c => allOpponentIds.includes(c.id))
+  onChange: (updated: DivisionActivity | null) => void
+}
 
-  // Build buckets: Sin confirmar + Entrena + Local + one per rival venue
-  const buckets: Bucket[] = [
-    { key: 'no_game', label: 'Sin confirmar', icon: '⏳' },
-    { key: 'entrena', label: 'Entrena',       icon: '🏃' },
-    { key: 'local',   label: 'Local',         icon: '🏠' },
-    ...opponentClubs.flatMap(club =>
-      club.venues.map(v => ({
-        key: `venue_${v.id}`,
-        label: club.venues.length > 1 ? `${club.name} — ${v.name}` : club.name,
-        icon: '✈️',
-        address: v.address,
-        mapsUrl: v.maps_url,
-        venueId: v.id,
-      }))
-    ),
-  ]
+function VenueRow({ date, division, activity, clubs, buses, onChange }: VenueRowProps) {
+  const [venue, setVenue] = useState<'local' | 'visitante' | ''>(activity?.venue ?? '')
+  const [locationVenueId, setLocationVenueId] = useState(activity?.location_venue_id ?? '')
+  const [busId, setBusId] = useState(activity?.bus_id ?? '')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [showAllVenues, setShowAllVenues] = useState(false)
 
-  function getBucketKey(divId: string): string {
-    const act = activities.find(a => a.division_id === divId)
-    if (!act) return 'no_game'
-    if (act.activity_type === 'entrenamiento') return 'entrena'
-    if (!act.venue) return 'no_game'
-    if (act.venue === 'local') return 'local'
-    if (act.location_venue_id) return `venue_${act.location_venue_id}`
-    return 'no_game'
-  }
+  // Override individual por división
+  const [showOverride, setShowOverride] = useState(false)
+  const [overrideType, setOverrideType] = useState<'partido' | 'entrenamiento'>(activity?.activity_type ?? 'entrenamiento')
+  const [overrideOpponentIds, setOverrideOpponentIds] = useState<string[]>(activity?.opponent_club_ids ?? [])
+  const [savingOverride, setSavingOverride] = useState(false)
 
-  const [assignments, setAssignments] = useState<Record<string, string>>(() =>
-    Object.fromEntries(divisions.map(d => [d.id, getBucketKey(d.id)]))
-  )
-  const [busAssignments, setBusAssignments] = useState<Record<string, string>>(() =>
-    Object.fromEntries(divisions.map(d => [d.id, activities.find(a => a.division_id === d.id)?.bus_id ?? '']))
-  )
-  const [selectedDivId, setSelectedDivId] = useState<string | null>(null)
-  const [saving, setSaving] = useState<string[]>([])
-  const [addingClubToBucket, setAddingClubToBucket] = useState<string | null>(null)
-  const [savingBucketClub, setSavingBucketClub] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node))
-        setSelectedDivId(null)
-    }
-    document.addEventListener('mousedown', onClickOutside)
-    return () => document.removeEventListener('mousedown', onClickOutside)
-  }, [])
-
-  // Sync assignments when activities change externally (e.g. after GlobalSetup apply)
-  useEffect(() => {
-    setAssignments(Object.fromEntries(divisions.map(d => [d.id, getBucketKey(d.id)])))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activities])
-
-  async function moveDivision(divId: string, bucketKey: string) {
-    setAssignments(prev => ({ ...prev, [divId]: bucketKey }))
-    setSelectedDivId(null)
-    setSaving(prev => [...prev, divId])
-
-    const activity = activities.find(a => a.division_id === divId)
+  async function save(overrides: { v?: typeof venue; locVenue?: string; bus?: string; type?: string; oppIds?: string[] } = {}) {
+    const v = overrides.v ?? venue
+    const locVenue = overrides.locVenue ?? locationVenueId
+    const bus = overrides.bus ?? busId
+    const type = overrides.type ?? overrideType
+    const oppIds = overrides.oppIds ?? overrideOpponentIds
+    setSaving(true)
     const fd = new FormData()
     fd.append('event_date', date)
-    fd.append('division_id', divId)
-
-    if (bucketKey === 'no_game' || bucketKey === 'entrena') {
-      fd.append('activity_type', 'entrenamiento')
-    } else {
-      fd.append('activity_type', 'partido')
-      for (const id of activity?.opponent_club_ids ?? []) fd.append('opponent_club_id', id)
-      if (bucketKey === 'local') {
-        fd.append('venue', 'local')
-      } else {
-        fd.append('venue', 'visitante')
-        fd.append('location_venue_id', bucketKey.replace('venue_', ''))
-      }
+    fd.append('division_id', division.id)
+    fd.append('activity_type', type)
+    if (type === 'partido') {
+      for (const id of oppIds) fd.append('opponent_club_id', id)
+      if (v) fd.append('venue', v)
+      if (v === 'visitante' && locVenue) fd.append('location_venue_id', locVenue)
     }
-    if (busAssignments[divId]) fd.append('bus_id', busAssignments[divId])
-
+    if (bus) fd.append('bus_id', bus)
     await saveDivisionActivity(fd)
-    setSaving(prev => prev.filter(id => id !== divId))
-
-    const base = activity ?? { id: crypto.randomUUID(), activity_date: date, division_id: divId, ...EMPTY_ACTIVITY_BASE }
-    const isTraining = bucketKey === 'no_game' || bucketKey === 'entrena'
-    onActivityChange(divId, {
-      ...base,
-      activity_type: isTraining ? 'entrenamiento' : 'partido',
-      venue: bucketKey === 'local' ? 'local' : isTraining ? null : 'visitante',
-      location_venue_id: bucketKey.startsWith('venue_') ? bucketKey.replace('venue_', '') : null,
-    } as DivisionActivity)
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 1500)
+    onChange({ ...(activity ?? {
+      id: crypto.randomUUID(),
+      activity_date: date,
+      division_id: division.id,
+      opponent_club_id: null,
+      opponent_club_name: null,
+      opponent_club_ids: [],
+      location_club_id: null,
+      location_club_name: null,
+      location_notes: null,
+      location_venue_id: null,
+      location_venue_name: null,
+      location_venue_address: null,
+      location_venue_maps_url: null,
+      bus_id: null,
+      bus_label: null,
+      bus_driver_phone: null,
+      bus_patente: null,
+      venue: null,
+    }), activity_type: type as 'partido' | 'entrenamiento', opponent_club_ids: oppIds, venue: v as 'local' | 'visitante' | null, location_venue_id: locVenue || null, bus_id: bus || null })
   }
 
-  async function addClubToBucket(bucketKey: string, clubId: string) {
-    setSavingBucketClub(true)
-    const divsInBucket = divisions.filter(d => assignments[d.id] === bucketKey)
-    for (const div of divsInBucket) {
-      const activity = activities.find(a => a.division_id === div.id)
-      const currentOpps = activity?.opponent_club_ids ?? []
-      if (currentOpps.includes(clubId)) continue
-      const newOpps = [...currentOpps, clubId]
-      const fd = new FormData()
-      fd.append('event_date', date)
-      fd.append('division_id', div.id)
-      fd.append('activity_type', 'partido')
-      for (const id of newOpps) fd.append('opponent_club_id', id)
-      if (activity?.venue) fd.append('venue', activity.venue)
-      if (activity?.location_venue_id) fd.append('location_venue_id', activity.location_venue_id)
-      if (busAssignments[div.id]) fd.append('bus_id', busAssignments[div.id])
-      await saveDivisionActivity(fd)
-      onActivityChange(div.id, { ...(activity ?? { id: crypto.randomUUID(), activity_date: date, division_id: div.id, ...EMPTY_ACTIVITY_BASE }), opponent_club_ids: newOpps, opponent_club_id: newOpps[0] } as DivisionActivity)
-    }
-    setSavingBucketClub(false)
-    setAddingClubToBucket(null)
+  async function saveOverride() {
+    setSavingOverride(true)
+    await save({ type: overrideType, oppIds: overrideOpponentIds, v: overrideType === 'entrenamiento' ? '' : venue })
+    setSavingOverride(false)
+    setShowOverride(false)
   }
 
-  async function saveBus(divId: string, busId: string) {
-    setBusAssignments(prev => ({ ...prev, [divId]: busId }))
-    const activity = activities.find(a => a.division_id === divId)
-    if (!activity) return
-    const fd = new FormData()
-    fd.append('event_date', date)
-    fd.append('division_id', divId)
-    fd.append('activity_type', activity.activity_type)
-    for (const id of activity.opponent_club_ids ?? []) fd.append('opponent_club_id', id)
-    if (activity.venue) fd.append('venue', activity.venue)
-    if (activity.location_venue_id) fd.append('location_venue_id', activity.location_venue_id)
-    if (busId) fd.append('bus_id', busId)
-    await saveDivisionActivity(fd)
+  function handleVenue(v: 'local' | 'visitante') {
+    setVenue(v)
+    if (v === 'local') { setLocationVenueId(''); save({ v, locVenue: '' }) }
+    else save({ v })
   }
 
-  // Group divisions by bucket key
-  const divsByBucket: Record<string, Division[]> = Object.fromEntries(buckets.map(b => [b.key, []]))
-  for (const div of divisions) {
-    const key = assignments[div.id] ?? 'no_game'
-    ;(divsByBucket[key] ?? divsByBucket['no_game']).push(div)
-  }
+  const opponentIds = overrideOpponentIds
+  const relevantClubs = clubs.filter(c => opponentIds.includes(c.id) && c.venues.length > 0)
+  const otherClubs = clubs.filter(c => !opponentIds.includes(c.id) && c.venues.length > 0)
+  const isPartido = overrideType === 'partido'
 
   return (
-    <div className="space-y-3" ref={containerRef}>
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1">Localía</p>
+    <div className="px-4 py-3 space-y-2">
+      <div className="flex items-center gap-3">
+        {/* División name */}
+        <span className="w-16 text-sm font-bold text-gray-800 flex-shrink-0">{division.name}</span>
 
-      {/* Kanban: columna en mobile, grid en desktop */}
-      <div
-        className="flex flex-col gap-3 md:grid"
-        style={{ gridTemplateColumns: `repeat(${buckets.length}, minmax(0, 1fr))` }}
-      >
-        {buckets.map(bucket => {
-          const isNoGame = bucket.key === 'no_game'
-          const isEntrena = bucket.key === 'entrena'
-          const isLocal = bucket.key === 'local'
-          const isVenue = bucket.key.startsWith('venue_')
-          const bgClass = isNoGame ? 'bg-gray-50 border-gray-200'
-            : isEntrena ? 'bg-green-50 border-green-200'
-            : isLocal ? 'bg-gray-800 border-gray-700'
-            : 'bg-orange-50 border-orange-200'
-          const labelClass = isNoGame ? 'text-gray-500'
-            : isEntrena ? 'text-green-700'
-            : isLocal ? 'text-white'
-            : 'text-orange-700'
+        {overrideType === 'entrenamiento' ? (
+          <span className="flex-1 text-xs text-gray-400 italic">Entrena</span>
+        ) : (
+          /* Local / Visitante toggle */
+          <div className="flex gap-1.5 flex-1">
+            <button
+              onClick={() => handleVenue('local')}
+              disabled={saving}
+              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+                venue === 'local' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+              }`}
+            >
+              Local
+            </button>
+            <button
+              onClick={() => handleVenue('visitante')}
+              disabled={saving}
+              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+                venue === 'visitante' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+              }`}
+            >
+              Visita
+            </button>
+          </div>
+        )}
 
-          // For venue buckets: existing opponent clubs in this bucket
-          const bucketDivIds = (divsByBucket[bucket.key] ?? []).map(d => d.id)
-          const firstAct = bucketDivIds.length > 0 ? activities.find(a => a.division_id === bucketDivIds[0]) : null
-          const existingOppIds = firstAct?.opponent_club_ids ?? []
-          const availableClubs = clubs.filter(c => !existingOppIds.includes(c.id))
-          const isAddingHere = addingClubToBucket === bucket.key
+        {/* Bondi */}
+        {buses.length > 0 && (
+          <select
+            value={busId}
+            onChange={e => { setBusId(e.target.value); save({ bus: e.target.value }) }}
+            className="w-28 px-2 py-2 border border-gray-200 rounded-lg text-xs bg-white text-gray-600"
+          >
+            <option value="">🚌 —</option>
+            {buses.map(b => <option key={b.id} value={b.id}>{b.label}</option>)}
+          </select>
+        )}
 
-          return (
-            <div key={bucket.key} className={`rounded-xl border p-3 space-y-2 min-h-[72px] ${bgClass}`}>
-              {/* Header */}
-              <div className="flex items-center justify-between gap-1">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="text-base flex-shrink-0">{bucket.icon}</span>
-                  <span className={`text-xs font-semibold truncate ${labelClass}`}>{bucket.label}</span>
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  {bucket.mapsUrl && (
-                    <a href={bucket.mapsUrl} target="_blank" rel="noopener noreferrer"
-                      className="text-base" title={bucket.address ?? ''}>📍</a>
-                  )}
-                  {/* + rival button — solo en buckets visitantes */}
-                  {isVenue && bucketDivIds.length > 0 && (
-                    <div className="relative">
-                      <button
-                        onClick={() => setAddingClubToBucket(isAddingHere ? null : bucket.key)}
-                        className="w-6 h-6 rounded-full bg-orange-200 hover:bg-orange-300 text-orange-700 text-sm font-bold flex items-center justify-center"
-                        title="Agregar rival a esta sede"
-                      >+</button>
-                      {isAddingHere && (
-                        <div className="absolute top-full right-0 z-30 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl min-w-[200px] overflow-hidden">
-                          <p className="text-xs text-gray-400 px-3 pt-2.5 pb-1">Agregar rival en {bucket.label}</p>
-                          <div className="max-h-48 overflow-y-auto py-1">
-                            {availableClubs.length === 0
-                              ? <p className="text-xs text-gray-300 px-3 py-2">Sin más clubes</p>
-                              : availableClubs.map(c => (
-                                <button key={c.id}
-                                  onClick={() => addClubToBucket(bucket.key, c.id)}
-                                  disabled={savingBucketClub}
-                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-gray-700 disabled:opacity-50"
-                                >
-                                  {c.name}
-                                </button>
-                              ))
-                            }
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Chips */}
-              <div className="flex flex-wrap gap-1.5">
-                {divsByBucket[bucket.key]?.map(div => {
-                  const isSelected = selectedDivId === div.id
-                  const isSaving = saving.includes(div.id)
-                  const chipClass = isSaving
-                    ? 'opacity-50 cursor-wait bg-gray-200 text-gray-500'
-                    : isSelected
-                      ? 'ring-2 ring-blue-400 bg-blue-100 text-blue-800'
-                      : isNoGame
-                        ? 'bg-white border border-gray-300 text-gray-500 hover:border-gray-400'
-                        : isEntrena
-                          ? 'bg-green-600 text-white hover:bg-green-700'
-                          : isLocal
-                            ? 'bg-white text-gray-800 border border-gray-300 hover:border-gray-400'
-                            : 'bg-orange-500 text-white hover:bg-orange-600'
-
-                  return (
-                    <div key={div.id} className="relative">
-                      <button
-                        onClick={() => setSelectedDivId(isSelected ? null : div.id)}
-                        disabled={isSaving}
-                        className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-all ${chipClass}`}
-                      >
-                        {isSaving ? '…' : div.name}
-                      </button>
-
-                      {/* Popover de destinos */}
-                      {isSelected && (
-                        <div className="absolute top-full left-0 z-30 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl min-w-[190px] overflow-hidden">
-                          <p className="text-xs text-gray-400 px-3 pt-2.5 pb-1.5">Mover {div.name} a…</p>
-                          {buckets.filter(b => b.key !== bucket.key).map(b => (
-                            <button key={b.key} onClick={() => moveDivision(div.id, b.key)}
-                              className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2.5 border-t border-gray-50">
-                              <span className="text-base">{b.icon}</span>
-                              <span className="font-medium text-gray-700">{b.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-                {divsByBucket[bucket.key]?.length === 0 && (
-                  <p className="text-xs text-gray-300 italic py-1">Ninguna</p>
-                )}
-              </div>
-            </div>
-          )
-        })}
+        {/* Override toggle + status */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {saving && <span className="text-xs text-gray-400">...</span>}
+          {saved && !saving && <span className="text-xs text-green-600">✓</span>}
+          <button
+            onClick={() => setShowOverride(v => !v)}
+            className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
+              showOverride
+                ? 'bg-amber-50 border-amber-300 text-amber-700'
+                : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600'
+            }`}
+            title="Configuración diferente para esta división"
+          >
+            ✎
+          </button>
+        </div>
       </div>
 
-      {/* Bondis — solo divisiones con partido */}
-      {buses.length > 0 && divisions.some(d => assignments[d.id] !== 'no_game' && assignments[d.id] !== 'entrena') && (
-        <div className="bg-white border border-gray-200 rounded-xl p-3 space-y-2">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Bondis</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-            {divisions.filter(d => assignments[d.id] !== 'no_game' && assignments[d.id] !== 'entrena').map(div => (
-              <div key={div.id} className="flex items-center gap-2">
-                <span className="w-12 text-xs font-bold text-gray-700 flex-shrink-0">{div.name}</span>
-                <select
-                  value={busAssignments[div.id] ?? ''}
-                  onChange={e => saveBus(div.id, e.target.value)}
-                  className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-xs bg-white text-gray-600"
-                >
-                  <option value="">🚌 Sin bondi</option>
-                  {buses.map(b => (
-                    <option key={b.id} value={b.id}>
-                      {b.label}{b.patente ? ` (${b.patente})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
+      {/* Sede visitante */}
+      {isPartido && venue === 'visitante' && !showOverride && (
+        <div className="pl-[76px] space-y-1">
+          <select
+            value={locationVenueId}
+            onChange={e => { setLocationVenueId(e.target.value); save({ locVenue: e.target.value }) }}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs bg-white text-gray-700"
+          >
+            <option value="">Elegir sede...</option>
+            {relevantClubs.map(club =>
+              club.venues.map(v => (
+                <option key={v.id} value={v.id}>
+                  {club.venues.length > 1 ? `${club.name} — ${v.name}` : club.name}
+                </option>
+              ))
+            )}
+            {showAllVenues && relevantClubs.length > 0 && otherClubs.length > 0 && (
+              <option disabled>──────────</option>
+            )}
+            {showAllVenues && otherClubs.map(club =>
+              club.venues.map(v => (
+                <option key={v.id} value={v.id}>
+                  {club.venues.length > 1 ? `${club.name} — ${v.name}` : club.name}
+                </option>
+              ))
+            )}
+          </select>
+          {!showAllVenues && otherClubs.length > 0 && (
+            <button
+              onClick={() => setShowAllVenues(true)}
+              className="text-xs text-gray-400 underline"
+            >
+              Ver todas las sedes ({otherClubs.length} más)
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Panel de override individual */}
+      {showOverride && (
+        <div className="ml-[76px] p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+          <p className="text-xs font-semibold text-amber-700">Configuración solo para {division.name}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setOverrideType('entrenamiento'); setOverrideOpponentIds([]) }}
+              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+                overrideType === 'entrenamiento' ? 'bg-green-600 text-white' : 'bg-white border border-gray-200 text-gray-500'
+              }`}
+            >
+              🏃 Entrena
+            </button>
+            <button
+              onClick={() => setOverrideType('partido')}
+              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+                overrideType === 'partido' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-500'
+              }`}
+            >
+              ⚽ Partido
+            </button>
+          </div>
+          {overrideType === 'partido' && (
+            <MultiClubSelect clubs={clubs} selectedIds={overrideOpponentIds} onChange={setOverrideOpponentIds} />
+          )}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={() => setShowOverride(false)}
+              className="flex-1 py-2 text-xs rounded-lg bg-white border border-gray-200 text-gray-500"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={saveOverride}
+              disabled={savingOverride}
+              className="flex-1 py-2 text-xs rounded-lg bg-amber-600 text-white font-semibold disabled:opacity-50"
+            >
+              {savingOverride ? 'Guardando...' : 'Guardar'}
+            </button>
           </div>
         </div>
       )}
