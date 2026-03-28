@@ -279,10 +279,11 @@ function VenueKanban({
   const allOpponentIds = _allIds.filter((id, i) => _allIds.indexOf(id) === i)
   const opponentClubs = clubs.filter(c => allOpponentIds.includes(c.id))
 
-  // Build buckets: Sin partido + Local + one per rival venue
+  // Build buckets: Sin confirmar + Entrena + Local + one per rival venue
   const buckets: Bucket[] = [
     { key: 'no_game', label: 'Sin confirmar', icon: '⏳' },
-    { key: 'local',   label: 'Local',        icon: '🏠' },
+    { key: 'entrena', label: 'Entrena',       icon: '🏃' },
+    { key: 'local',   label: 'Local',         icon: '🏠' },
     ...opponentClubs.flatMap(club =>
       club.venues.map(v => ({
         key: `venue_${v.id}`,
@@ -297,7 +298,9 @@ function VenueKanban({
 
   function getBucketKey(divId: string): string {
     const act = activities.find(a => a.division_id === divId)
-    if (!act || act.activity_type === 'entrenamiento' || !act.venue) return 'no_game'
+    if (!act) return 'no_game'
+    if (act.activity_type === 'entrenamiento') return 'entrena'
+    if (!act.venue) return 'no_game'
     if (act.venue === 'local') return 'local'
     if (act.location_venue_id) return `venue_${act.location_venue_id}`
     return 'no_game'
@@ -311,6 +314,8 @@ function VenueKanban({
   )
   const [selectedDivId, setSelectedDivId] = useState<string | null>(null)
   const [saving, setSaving] = useState<string[]>([])
+  const [addingClubToBucket, setAddingClubToBucket] = useState<string | null>(null)
+  const [savingBucketClub, setSavingBucketClub] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -338,7 +343,7 @@ function VenueKanban({
     fd.append('event_date', date)
     fd.append('division_id', divId)
 
-    if (bucketKey === 'no_game') {
+    if (bucketKey === 'no_game' || bucketKey === 'entrena') {
       fd.append('activity_type', 'entrenamiento')
     } else {
       fd.append('activity_type', 'partido')
@@ -356,12 +361,36 @@ function VenueKanban({
     setSaving(prev => prev.filter(id => id !== divId))
 
     const base = activity ?? { id: crypto.randomUUID(), activity_date: date, division_id: divId, ...EMPTY_ACTIVITY_BASE }
+    const isTraining = bucketKey === 'no_game' || bucketKey === 'entrena'
     onActivityChange(divId, {
       ...base,
-      activity_type: bucketKey === 'no_game' ? 'entrenamiento' : 'partido',
-      venue: bucketKey === 'local' ? 'local' : bucketKey === 'no_game' ? null : 'visitante',
+      activity_type: isTraining ? 'entrenamiento' : 'partido',
+      venue: bucketKey === 'local' ? 'local' : isTraining ? null : 'visitante',
       location_venue_id: bucketKey.startsWith('venue_') ? bucketKey.replace('venue_', '') : null,
     } as DivisionActivity)
+  }
+
+  async function addClubToBucket(bucketKey: string, clubId: string) {
+    setSavingBucketClub(true)
+    const divsInBucket = divisions.filter(d => assignments[d.id] === bucketKey)
+    for (const div of divsInBucket) {
+      const activity = activities.find(a => a.division_id === div.id)
+      const currentOpps = activity?.opponent_club_ids ?? []
+      if (currentOpps.includes(clubId)) continue
+      const newOpps = [...currentOpps, clubId]
+      const fd = new FormData()
+      fd.append('event_date', date)
+      fd.append('division_id', div.id)
+      fd.append('activity_type', 'partido')
+      for (const id of newOpps) fd.append('opponent_club_id', id)
+      if (activity?.venue) fd.append('venue', activity.venue)
+      if (activity?.location_venue_id) fd.append('location_venue_id', activity.location_venue_id)
+      if (busAssignments[div.id]) fd.append('bus_id', busAssignments[div.id])
+      await saveDivisionActivity(fd)
+      onActivityChange(div.id, { ...(activity ?? { id: crypto.randomUUID(), activity_date: date, division_id: div.id, ...EMPTY_ACTIVITY_BASE }), opponent_club_ids: newOpps, opponent_club_id: newOpps[0] } as DivisionActivity)
+    }
+    setSavingBucketClub(false)
+    setAddingClubToBucket(null)
   }
 
   async function saveBus(divId: string, busId: string) {
@@ -397,9 +426,24 @@ function VenueKanban({
       >
         {buckets.map(bucket => {
           const isNoGame = bucket.key === 'no_game'
+          const isEntrena = bucket.key === 'entrena'
           const isLocal = bucket.key === 'local'
-          const bgClass = isNoGame ? 'bg-gray-50 border-gray-200' : isLocal ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'
-          const labelClass = isNoGame ? 'text-gray-500' : isLocal ? 'text-green-700' : 'text-orange-700'
+          const isVenue = bucket.key.startsWith('venue_')
+          const bgClass = isNoGame ? 'bg-gray-50 border-gray-200'
+            : isEntrena ? 'bg-green-50 border-green-200'
+            : isLocal ? 'bg-gray-800 border-gray-700'
+            : 'bg-orange-50 border-orange-200'
+          const labelClass = isNoGame ? 'text-gray-500'
+            : isEntrena ? 'text-green-700'
+            : isLocal ? 'text-white'
+            : 'text-orange-700'
+
+          // For venue buckets: existing opponent clubs in this bucket
+          const bucketDivIds = (divsByBucket[bucket.key] ?? []).map(d => d.id)
+          const firstAct = bucketDivIds.length > 0 ? activities.find(a => a.division_id === bucketDivIds[0]) : null
+          const existingOppIds = firstAct?.opponent_club_ids ?? []
+          const availableClubs = clubs.filter(c => !existingOppIds.includes(c.id))
+          const isAddingHere = addingClubToBucket === bucket.key
 
           return (
             <div key={bucket.key} className={`rounded-xl border p-3 space-y-2 min-h-[72px] ${bgClass}`}>
@@ -409,12 +453,41 @@ function VenueKanban({
                   <span className="text-base flex-shrink-0">{bucket.icon}</span>
                   <span className={`text-xs font-semibold truncate ${labelClass}`}>{bucket.label}</span>
                 </div>
-                {bucket.mapsUrl && (
-                  <a href={bucket.mapsUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-base flex-shrink-0" title={bucket.address ?? ''}>
-                    📍
-                  </a>
-                )}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {bucket.mapsUrl && (
+                    <a href={bucket.mapsUrl} target="_blank" rel="noopener noreferrer"
+                      className="text-base" title={bucket.address ?? ''}>📍</a>
+                  )}
+                  {/* + rival button — solo en buckets visitantes */}
+                  {isVenue && bucketDivIds.length > 0 && (
+                    <div className="relative">
+                      <button
+                        onClick={() => setAddingClubToBucket(isAddingHere ? null : bucket.key)}
+                        className="w-6 h-6 rounded-full bg-orange-200 hover:bg-orange-300 text-orange-700 text-sm font-bold flex items-center justify-center"
+                        title="Agregar rival a esta sede"
+                      >+</button>
+                      {isAddingHere && (
+                        <div className="absolute top-full right-0 z-30 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl min-w-[200px] overflow-hidden">
+                          <p className="text-xs text-gray-400 px-3 pt-2.5 pb-1">Agregar rival en {bucket.label}</p>
+                          <div className="max-h-48 overflow-y-auto py-1">
+                            {availableClubs.length === 0
+                              ? <p className="text-xs text-gray-300 px-3 py-2">Sin más clubes</p>
+                              : availableClubs.map(c => (
+                                <button key={c.id}
+                                  onClick={() => addClubToBucket(bucket.key, c.id)}
+                                  disabled={savingBucketClub}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-gray-700 disabled:opacity-50"
+                                >
+                                  {c.name}
+                                </button>
+                              ))
+                            }
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Chips */}
@@ -428,9 +501,11 @@ function VenueKanban({
                       ? 'ring-2 ring-blue-400 bg-blue-100 text-blue-800'
                       : isNoGame
                         ? 'bg-white border border-gray-300 text-gray-500 hover:border-gray-400'
-                        : isLocal
-                          ? 'bg-green-700 text-white hover:bg-green-800'
-                          : 'bg-orange-500 text-white hover:bg-orange-600'
+                        : isEntrena
+                          ? 'bg-green-600 text-white hover:bg-green-700'
+                          : isLocal
+                            ? 'bg-white text-gray-800 border border-gray-300 hover:border-gray-400'
+                            : 'bg-orange-500 text-white hover:bg-orange-600'
 
                   return (
                     <div key={div.id} className="relative">
@@ -468,11 +543,11 @@ function VenueKanban({
       </div>
 
       {/* Bondis — solo divisiones con partido */}
-      {buses.length > 0 && divisions.some(d => assignments[d.id] !== 'no_game') && (
+      {buses.length > 0 && divisions.some(d => assignments[d.id] !== 'no_game' && assignments[d.id] !== 'entrena') && (
         <div className="bg-white border border-gray-200 rounded-xl p-3 space-y-2">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Bondis</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-            {divisions.filter(d => assignments[d.id] !== 'no_game').map(div => (
+            {divisions.filter(d => assignments[d.id] !== 'no_game' && assignments[d.id] !== 'entrena').map(div => (
               <div key={div.id} className="flex items-center gap-2">
                 <span className="w-12 text-xs font-bold text-gray-700 flex-shrink-0">{div.name}</span>
                 <select
