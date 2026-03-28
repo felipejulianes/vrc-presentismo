@@ -18,7 +18,7 @@ export default async function StatsPage() {
   if (profile?.role === 'admin') {
     const [divisionStats, trendData] = await Promise.all([
       getAdminDivisionStats(),
-      getAdminTrendData(20),
+      getAdminTrendData(100),
     ])
 
     const totalActive = divisionStats.reduce((s, d) => s + d.totalActive, 0)
