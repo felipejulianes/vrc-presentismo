@@ -1,11 +1,7 @@
 'use client'
 
 import { useState, useTransition, useRef, useEffect } from 'react'
-import {
-  saveDivisionActivity,
-  deleteDivisionActivity,
-  addOpponentClub,
-} from '@/app/(app)/admin/sabados/actions'
+import { saveDivisionActivity } from '@/app/(app)/admin/sabados/actions'
 import type { DivisionActivity, OpponentClub, OpponentClubFull, EventBus } from '@/lib/queries/sabados'
 
 interface Division { id: string; name: string }
@@ -18,75 +14,371 @@ interface Props {
   buses: EventBus[]
 }
 
-export function SabadoSetupGrid({ date, divisions, activities, clubs: initialClubs, buses }: Props) {
-  const [clubs, setClubs] = useState(initialClubs)
-  const [addingClub, setAddingClub] = useState(false)
-  const [newClubName, setNewClubName] = useState('')
-  const [, startGlobal] = useTransition()
+// ── Helpers ──────────────────────────────────────────────────
 
-  const activityByDiv: Record<string, DivisionActivity> = {}
-  for (const a of activities) activityByDiv[a.division_id] = a
+function sameIds(a: string[], b: string[]) {
+  return JSON.stringify([...a].sort()) === JSON.stringify([...b].sort())
+}
 
-  function handleAddClub() {
-    if (!newClubName.trim()) return
-    startGlobal(async () => {
-      const res = await addOpponentClub(newClubName.trim())
-      if (res.club) {
-        setClubs(prev => [...prev, {
-          id: res.club!.id, name: res.club!.name, active: true,
-          coordinator_name: null, coordinator_phone: null, coordinator_notes: null, venues: []
-        }])
-        setNewClubName('')
-        setAddingClub(false)
-      }
+function detectGlobalState(activities: DivisionActivity[], divisions: Division[]) {
+  if (activities.length === 0 || activities.length < divisions.length) return null
+  const first = activities[0]
+  const allSameType = activities.every(a => a.activity_type === first.activity_type)
+  const firstOpps = first.opponent_club_ids ?? []
+  const allSameOpps = activities.every(a => sameIds(a.opponent_club_ids ?? [], firstOpps))
+  if (!allSameType) return null
+  return {
+    type: first.activity_type,
+    opponentIds: allSameOpps ? firstOpps : [] as string[],
+  }
+}
+
+// ── Root component ────────────────────────────────────────────
+
+export function SabadoSetupGrid({ date, divisions, activities: initialActivities, clubs, buses }: Props) {
+  const [activities, setActivities] = useState(initialActivities)
+
+  const activityByDiv = Object.fromEntries(activities.map(a => [a.division_id, a]))
+  const anyPartido = activities.some(a => a.activity_type === 'partido')
+
+  function handleActivityChange(divisionId: string, updated: DivisionActivity | null) {
+    setActivities(prev => {
+      const next = prev.filter(a => a.division_id !== divisionId)
+      return updated ? [...next, updated] : next
     })
   }
 
   return (
-    <div className="space-y-3">
-      {divisions.map(div => (
-        <DivisionCard
-          key={div.id}
-          date={date}
-          division={div}
-          activity={activityByDiv[div.id] ?? null}
-          clubs={clubs}
-          buses={buses}
-        />
-      ))}
+    <div className="space-y-4">
+      {/* ① Global setup */}
+      <GlobalSetup
+        date={date}
+        divisions={divisions}
+        activities={activities}
+        clubs={clubs}
+        onApplied={setActivities}
+      />
 
-      {/* Add club */}
-      {addingClub ? (
-        <div className="flex gap-2 items-center bg-blue-50 border border-blue-200 rounded-xl p-3">
-          <input
-            autoFocus
-            type="text"
-            value={newClubName}
-            onChange={e => setNewClubName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleAddClub()}
-            placeholder="Nombre del club..."
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-vrc-green"
-          />
-          <button onClick={handleAddClub} className="px-3 py-2 bg-vrc-green text-white rounded-lg text-sm font-semibold">
-            Agregar
-          </button>
-          <button onClick={() => { setAddingClub(false); setNewClubName('') }} className="text-gray-400 text-sm px-1">
-            ✕
-          </button>
+      {/* ② Localía por división — solo si hay partidos */}
+      {anyPartido && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1">
+            Localía por división
+          </p>
+          <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
+            {divisions.map(div => {
+              const activity = activityByDiv[div.id]
+              if (!activity || activity.activity_type !== 'partido') {
+                return (
+                  <div key={div.id} className="flex items-center px-4 py-3 gap-3">
+                    <span className="w-16 text-sm font-semibold text-gray-400">{div.name}</span>
+                    <span className="text-xs text-gray-300 italic">sin partido</span>
+                  </div>
+                )
+              }
+              return (
+                <VenueRow
+                  key={div.id}
+                  date={date}
+                  division={div}
+                  activity={activity}
+                  clubs={clubs}
+                  buses={buses}
+                  onChange={(updated) => handleActivityChange(div.id, updated)}
+                />
+              )
+            })}
+          </div>
         </div>
-      ) : (
-        <button
-          onClick={() => setAddingClub(true)}
-          className="text-sm text-gray-400 hover:text-vrc-green px-1"
-        >
-          + Agregar club rival a la lista
-        </button>
       )}
     </div>
   )
 }
 
-// ── MultiClubSelect — styled like native <select> ─────────────
+// ── GlobalSetup ───────────────────────────────────────────────
+
+function GlobalSetup({
+  date, divisions, activities, clubs, onApplied,
+}: {
+  date: string
+  divisions: Division[]
+  activities: DivisionActivity[]
+  clubs: OpponentClubFull[]
+  onApplied: (acts: DivisionActivity[]) => void
+}) {
+  const detected = detectGlobalState(activities, divisions)
+
+  const [type, setType] = useState<'partido' | 'entrenamiento' | ''>(detected?.type ?? '')
+  const [opponentIds, setOpponentIds] = useState<string[]>(detected?.opponentIds ?? [])
+  const [applying, setApplying] = useState(false)
+  const [appliedCount, setAppliedCount] = useState(0)
+  const [, startTransition] = useTransition()
+
+  const configuredCount = activities.length
+  const canApply = type !== ''
+  const isPartido = type === 'partido'
+
+  async function handleApplyAll() {
+    if (!canApply) return
+    setApplying(true)
+    setAppliedCount(0)
+    const updated: DivisionActivity[] = []
+
+    for (const div of divisions) {
+      const existing = activities.find(a => a.division_id === div.id)
+      const fd = new FormData()
+      fd.append('event_date', date)
+      fd.append('division_id', div.id)
+      fd.append('activity_type', type)
+      if (type === 'partido') {
+        for (const id of opponentIds) fd.append('opponent_club_id', id)
+        // Preserve existing venue/bus
+        if (existing?.venue) fd.append('venue', existing.venue)
+        if (existing?.location_venue_id) fd.append('location_venue_id', existing.location_venue_id)
+        if (existing?.bus_id) fd.append('bus_id', existing.bus_id)
+      }
+      await saveDivisionActivity(fd)
+      // Build optimistic updated activity
+      updated.push({
+        ...(existing ?? {
+          id: crypto.randomUUID(),
+          activity_date: date,
+          division_id: div.id,
+          opponent_club_id: opponentIds[0] ?? null,
+          opponent_club_name: null,
+          opponent_club_ids: opponentIds,
+          location_club_id: null,
+          location_club_name: null,
+          location_notes: null,
+          location_venue_id: null,
+          location_venue_name: null,
+          location_venue_address: null,
+          location_venue_maps_url: null,
+          bus_id: null,
+          bus_label: null,
+          bus_driver_phone: null,
+          bus_patente: null,
+          venue: null,
+        }),
+        activity_type: type as 'partido' | 'entrenamiento',
+        opponent_club_ids: opponentIds,
+        opponent_club_id: opponentIds[0] ?? null,
+      })
+      setAppliedCount(c => c + 1)
+    }
+
+    onApplied(updated)
+    setApplying(false)
+  }
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
+        <p className="text-sm font-semibold text-gray-700">Para todas las divisiones</p>
+        <span className="text-xs text-gray-400">
+          {configuredCount}/{divisions.length} configuradas
+        </span>
+      </div>
+
+      <div className="px-4 py-3 space-y-3">
+        {/* Tipo */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setType('entrenamiento'); setOpponentIds([]) }}
+            className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all ${
+              type === 'entrenamiento'
+                ? 'bg-green-600 text-white shadow-sm'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+          >
+            🏃 Entrenamiento
+          </button>
+          <button
+            onClick={() => setType('partido')}
+            className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all ${
+              type === 'partido'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+          >
+            ⚽ Partido
+          </button>
+        </div>
+
+        {/* Rivales */}
+        {isPartido && (
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Rivales (compartidos por todas)</label>
+            <MultiClubSelect
+              clubs={clubs}
+              selectedIds={opponentIds}
+              onChange={setOpponentIds}
+            />
+          </div>
+        )}
+
+        {/* Apply button */}
+        {type && (
+          <button
+            onClick={() => startTransition(handleApplyAll)}
+            disabled={applying}
+            className="w-full py-3 bg-gray-800 hover:bg-gray-900 disabled:bg-gray-400 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+          >
+            {applying ? (
+              <>
+                <span className="animate-spin text-base">⟳</span>
+                Aplicando {appliedCount}/{divisions.length}...
+              </>
+            ) : (
+              `Aplicar a las ${divisions.length} divisiones ↓`
+            )}
+          </button>
+        )}
+
+        {!type && (
+          <p className="text-xs text-gray-400 text-center py-1">
+            Elegí entrenamiento o partido para configurar todas las divisiones a la vez
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── VenueRow — fila compacta de localía por división ──────────
+
+interface VenueRowProps {
+  date: string
+  division: Division
+  activity: DivisionActivity
+  clubs: OpponentClubFull[]
+  buses: EventBus[]
+  onChange: (updated: DivisionActivity | null) => void
+}
+
+function VenueRow({ date, division, activity, clubs, buses, onChange }: VenueRowProps) {
+  const [venue, setVenue] = useState<'local' | 'visitante' | ''>(activity.venue ?? '')
+  const [locationVenueId, setLocationVenueId] = useState(activity.location_venue_id ?? '')
+  const [busId, setBusId] = useState(activity.bus_id ?? '')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  async function save(overrides: { v?: typeof venue; locVenue?: string; bus?: string } = {}) {
+    const v = overrides.v ?? venue
+    const locVenue = overrides.locVenue ?? locationVenueId
+    const bus = overrides.bus ?? busId
+    setSaving(true)
+    const fd = new FormData()
+    fd.append('event_date', date)
+    fd.append('division_id', division.id)
+    fd.append('activity_type', 'partido')
+    for (const id of (activity.opponent_club_ids ?? [])) fd.append('opponent_club_id', id)
+    if (v) fd.append('venue', v)
+    if (v === 'visitante' && locVenue) fd.append('location_venue_id', locVenue)
+    if (bus) fd.append('bus_id', bus)
+    await saveDivisionActivity(fd)
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 1500)
+    onChange({ ...activity, venue: v as 'local' | 'visitante' | null, location_venue_id: locVenue || null, bus_id: bus || null })
+  }
+
+  function handleVenue(v: 'local' | 'visitante') {
+    setVenue(v)
+    if (v === 'local') { setLocationVenueId(''); save({ v, locVenue: '' }) }
+    else save({ v })
+  }
+
+  const opponentIds = activity.opponent_club_ids ?? []
+  const relevantClubs = clubs.filter(c => opponentIds.includes(c.id) && c.venues.length > 0)
+  const otherClubs = clubs.filter(c => !opponentIds.includes(c.id) && c.venues.length > 0)
+
+  return (
+    <div className="px-4 py-3 space-y-2">
+      <div className="flex items-center gap-3">
+        {/* División name */}
+        <span className="w-16 text-sm font-bold text-gray-800 flex-shrink-0">{division.name}</span>
+
+        {/* Local / Visitante toggle */}
+        <div className="flex gap-1.5 flex-1">
+          <button
+            onClick={() => handleVenue('local')}
+            disabled={saving}
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+              venue === 'local'
+                ? 'bg-gray-800 text-white'
+                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+            }`}
+          >
+            Local
+          </button>
+          <button
+            onClick={() => handleVenue('visitante')}
+            disabled={saving}
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+              venue === 'visitante'
+                ? 'bg-orange-500 text-white'
+                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+            }`}
+          >
+            Visita
+          </button>
+        </div>
+
+        {/* Bondi */}
+        {buses.length > 0 && (
+          <select
+            value={busId}
+            onChange={e => { setBusId(e.target.value); save({ bus: e.target.value }) }}
+            className="w-28 px-2 py-2 border border-gray-200 rounded-lg text-xs bg-white text-gray-600"
+          >
+            <option value="">🚌 —</option>
+            {buses.map(b => <option key={b.id} value={b.id}>{b.label}</option>)}
+          </select>
+        )}
+
+        {/* Status */}
+        <span className="w-12 text-right flex-shrink-0">
+          {saving && <span className="text-xs text-gray-400">...</span>}
+          {saved && !saving && <span className="text-xs text-green-600">✓</span>}
+        </span>
+      </div>
+
+      {/* Sede visitante */}
+      {venue === 'visitante' && (
+        <div className="pl-[76px]">
+          <select
+            value={locationVenueId}
+            onChange={e => { setLocationVenueId(e.target.value); save({ locVenue: e.target.value }) }}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs bg-white text-gray-700"
+          >
+            <option value="">Elegir sede...</option>
+            {relevantClubs.map(club =>
+              club.venues.map(v => (
+                <option key={v.id} value={v.id}>
+                  {club.venues.length > 1 ? `${club.name} — ${v.name}` : club.name}
+                </option>
+              ))
+            )}
+            {relevantClubs.length > 0 && otherClubs.length > 0 && (
+              <option disabled>──────────</option>
+            )}
+            {otherClubs.map(club =>
+              club.venues.map(v => (
+                <option key={v.id} value={v.id}>
+                  {club.venues.length > 1 ? `${club.name} — ${v.name}` : club.name}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── MultiClubSelect ───────────────────────────────────────────
 
 function MultiClubSelect({
   clubs,
@@ -104,7 +396,6 @@ function MultiClubSelect({
 
   useEffect(() => {
     if (!open) { setSearch(''); return }
-    // Auto-focus search when dropdown opens
     setTimeout(() => searchRef.current?.focus(), 0)
     function onClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
@@ -113,32 +404,22 @@ function MultiClubSelect({
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [open])
 
-  const selectedNames = selectedIds
-    .map(id => clubs.find(c => c.id === id)?.name)
-    .filter(Boolean) as string[]
-
-  const label =
-    selectedNames.length === 0 ? 'Elegir rivales...'
+  const selectedNames = selectedIds.map(id => clubs.find(c => c.id === id)?.name).filter(Boolean) as string[]
+  const label = selectedNames.length === 0 ? 'Elegir rivales...'
     : selectedNames.length === 1 ? selectedNames[0]
     : `${selectedNames[0]} +${selectedNames.length - 1}`
 
   const selectedClubs = clubs.filter(c => selectedIds.includes(c.id))
   const q = search.toLowerCase().trim()
-  // Unselected clubs — filtered by search, selected always shown
-  const otherClubs = clubs.filter(c =>
-    !selectedIds.includes(c.id) && (q === '' || c.name.toLowerCase().includes(q))
-  )
+  const otherClubs = clubs.filter(c => !selectedIds.includes(c.id) && (q === '' || c.name.toLowerCase().includes(q)))
 
   return (
     <div ref={ref} className="relative">
-      {/* Trigger */}
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className={`w-full flex items-center justify-between px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-vrc-green ${
-          selectedIds.length > 0
-            ? 'border-blue-300 text-blue-800 font-medium'
-            : 'border-gray-300 text-gray-500'
+        className={`w-full flex items-center justify-between px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none ${
+          selectedIds.length > 0 ? 'border-blue-300 text-blue-800 font-medium' : 'border-gray-300 text-gray-500'
         }`}
       >
         <span className="truncate">{label}</span>
@@ -148,8 +429,7 @@ function MultiClubSelect({
       </button>
 
       {open && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-          {/* Search input */}
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
           <div className="px-3 pt-2.5 pb-2 border-b border-gray-100">
             <div className="flex items-center gap-2 px-2.5 py-2 bg-gray-50 rounded-lg border border-gray-200">
               <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -164,7 +444,7 @@ function MultiClubSelect({
                 className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 outline-none"
               />
               {search && (
-                <button onClick={() => setSearch('')} className="text-gray-400 hover:text-gray-600">
+                <button onClick={() => setSearch('')} className="text-gray-400">
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -172,32 +452,17 @@ function MultiClubSelect({
               )}
             </div>
           </div>
-
           <div className="max-h-52 overflow-y-auto py-1">
-            {/* Selected clubs — always visible, not filtered */}
             {selectedClubs.map(c => (
               <label key={c.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-blue-50 cursor-pointer bg-blue-50/50">
-                <input
-                  type="checkbox"
-                  checked={true}
-                  onChange={() => onChange(selectedIds.filter(id => id !== c.id))}
-                  className="w-4 h-4 accent-green-700 flex-shrink-0"
-                />
-                <span className="text-sm text-gray-800 font-medium">{c.name}</span>
+                <input type="checkbox" checked onChange={() => onChange(selectedIds.filter(id => id !== c.id))} className="w-4 h-4 accent-green-700 flex-shrink-0" />
+                <span className="text-sm font-medium text-gray-800">{c.name}</span>
               </label>
             ))}
-            {selectedClubs.length > 0 && otherClubs.length > 0 && (
-              <div className="border-t border-gray-100 my-0.5" />
-            )}
-            {/* Unselected clubs — filtered by search */}
+            {selectedClubs.length > 0 && otherClubs.length > 0 && <div className="border-t border-gray-100 my-0.5" />}
             {otherClubs.map(c => (
               <label key={c.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={false}
-                  onChange={() => onChange([...selectedIds, c.id])}
-                  className="w-4 h-4 accent-green-700 flex-shrink-0"
-                />
+                <input type="checkbox" checked={false} onChange={() => onChange([...selectedIds, c.id])} className="w-4 h-4 accent-green-700 flex-shrink-0" />
                 <span className="text-sm text-gray-700">{c.name}</span>
               </label>
             ))}
@@ -205,259 +470,11 @@ function MultiClubSelect({
               <p className="text-xs text-gray-400 text-center py-4">Sin resultados</p>
             )}
           </div>
-
           <div className="border-t border-gray-100 px-3 py-2">
-            <button onClick={() => setOpen(false)} className="text-sm font-semibold text-vrc-green">
-              Listo
-            </button>
+            <button onClick={() => setOpen(false)} className="text-sm font-semibold text-vrc-green">Listo</button>
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-// ── VenueSelect ───────────────────────────────────────────────
-
-function VenueSelect({
-  clubs,
-  selectedClubIds,
-  value,
-  onChange,
-}: {
-  clubs: OpponentClubFull[]
-  selectedClubIds: string[]
-  value: string
-  onChange: (venueId: string) => void
-}) {
-  const selectedClubs = clubs.filter(c => selectedClubIds.includes(c.id) && c.venues.length > 0)
-  const otherClubs = clubs.filter(c => !selectedClubIds.includes(c.id) && c.venues.length > 0)
-  const venueLabel = (club: OpponentClubFull, v: typeof club.venues[0]) =>
-    club.venues.length > 1 ? `${club.name} — ${v.name}` : club.name
-
-  return (
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-vrc-green"
-    >
-      <option value="">Elegir sede...</option>
-      {selectedClubs.map(club =>
-        club.venues.map(v => (
-          <option key={v.id} value={v.id}>{venueLabel(club, v)}</option>
-        ))
-      )}
-      {selectedClubs.length > 0 && otherClubs.length > 0 && (
-        <option disabled>──────────</option>
-      )}
-      {otherClubs.map(club =>
-        club.venues.map(v => (
-          <option key={v.id} value={v.id}>{venueLabel(club, v)}</option>
-        ))
-      )}
-    </select>
-  )
-}
-
-// ── Division card ─────────────────────────────────────────────
-
-interface CardProps {
-  date: string
-  division: Division
-  activity: DivisionActivity | null
-  clubs: OpponentClubFull[]
-  buses: EventBus[]
-}
-
-function DivisionCard({ date, division, activity, clubs, buses }: CardProps) {
-  const [type, setType] = useState<'partido' | 'entrenamiento' | ''>(activity?.activity_type ?? '')
-  const [opponentIds, setOpponentIds] = useState<string[]>(
-    activity?.opponent_club_ids?.length ? activity.opponent_club_ids
-    : activity?.opponent_club_id ? [activity.opponent_club_id]
-    : []
-  )
-  const [venue, setVenue] = useState<'local' | 'visitante' | ''>(activity?.venue ?? '')
-  const [locationVenueId, setLocationVenueId] = useState(activity?.location_venue_id ?? '')
-  const [busId, setBusId] = useState(activity?.bus_id ?? '')
-  const [saved, setSaved] = useState(false)
-  const [isPending, startTransition] = useTransition()
-
-  function save(
-    overrides: Partial<{
-      t: typeof type
-      opps: string[]
-      v: typeof venue
-      locVenue: string
-      bus: string
-    }> = {}
-  ) {
-    const t = overrides.t ?? type
-    if (!t) return
-    const fd = new FormData()
-    fd.append('event_date', date)
-    fd.append('division_id', division.id)
-    fd.append('activity_type', t)
-    const v = overrides.v ?? venue
-    const opps = overrides.opps ?? opponentIds
-    const locVenue = overrides.locVenue ?? locationVenueId
-    const bus = overrides.bus ?? busId
-    if (t === 'partido') {
-      if (v) fd.append('venue', v)
-      for (const id of opps) fd.append('opponent_club_id', id)
-      if (locVenue) fd.append('location_venue_id', locVenue)
-    }
-    if (bus) fd.append('bus_id', bus)
-    startTransition(async () => {
-      await saveDivisionActivity(fd)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 1500)
-    })
-  }
-
-  function handleType(t: 'partido' | 'entrenamiento') {
-    setType(t)
-    if (t === 'entrenamiento') { setOpponentIds([]); setVenue(''); setLocationVenueId('') }
-    save({ t, opps: t === 'entrenamiento' ? [] : opponentIds })
-  }
-
-  function handleVenue(v: 'local' | 'visitante') {
-    setVenue(v)
-    if (v === 'local') setLocationVenueId('')
-    save({ v, locVenue: v === 'local' ? '' : locationVenueId })
-  }
-
-  function handleOpponents(ids: string[]) {
-    setOpponentIds(ids)
-    save({ opps: ids })
-  }
-
-  function handleDelete() {
-    startTransition(async () => {
-      await deleteDivisionActivity(division.id, date)
-      setType('')
-      setVenue('')
-      setOpponentIds([])
-      setLocationVenueId('')
-      setBusId('')
-    })
-  }
-
-  const isPartido = type === 'partido'
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl">
-      {/* Card header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <span className="font-bold text-gray-900">{division.name}</span>
-        <div className="flex items-center gap-2">
-          {isPending && <span className="text-xs text-gray-400">Guardando…</span>}
-          {saved && !isPending && <span className="text-xs text-green-600 font-medium">✓ Guardado</span>}
-          {type && !isPending && !saved && (
-            <button onClick={handleDelete} className="text-gray-300 hover:text-red-400 p-1" title="Borrar actividad">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Card body */}
-      <div className="px-4 py-3 space-y-3">
-        {/* Activity type — segmented control */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => handleType('entrenamiento')}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-              type === 'entrenamiento'
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-            }`}
-          >
-            Entrenamiento
-          </button>
-          <button
-            onClick={() => handleType('partido')}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-              type === 'partido'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-            }`}
-          >
-            Partido
-          </button>
-        </div>
-
-        {/* Partido fields */}
-        {isPartido && (
-          <>
-            {/* Rivals */}
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Rivales</label>
-              <MultiClubSelect
-                clubs={clubs}
-                selectedIds={opponentIds}
-                onChange={handleOpponents}
-              />
-            </div>
-
-            {/* Local / Visitante */}
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Sede</label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleVenue('local')}
-                  className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                    venue === 'local'
-                      ? 'bg-gray-800 text-white'
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                  }`}
-                >
-                  Local
-                </button>
-                <button
-                  onClick={() => handleVenue('visitante')}
-                  className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                    venue === 'visitante'
-                      ? 'bg-orange-500 text-white'
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                  }`}
-                >
-                  Visitante
-                </button>
-              </div>
-            </div>
-
-            {/* Venue (visitante only) */}
-            {venue === 'visitante' && (
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Dónde jugamos</label>
-                <VenueSelect
-                  clubs={clubs}
-                  selectedClubIds={opponentIds}
-                  value={locationVenueId}
-                  onChange={(id) => { setLocationVenueId(id); save({ locVenue: id }) }}
-                />
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Bus */}
-        {type && buses.length > 0 && (
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Bondi</label>
-            <select
-              value={busId}
-              onChange={e => { setBusId(e.target.value); save({ bus: e.target.value }) }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-vrc-green"
-            >
-              <option value="">Sin bondi asignado</option>
-              {buses.map(b => <option key={b.id} value={b.id}>{b.label}</option>)}
-            </select>
-          </div>
-        )}
-      </div>
     </div>
   )
 }
