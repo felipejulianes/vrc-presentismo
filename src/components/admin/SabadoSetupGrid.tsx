@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useTransition, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { saveDivisionActivity } from '@/app/(app)/admin/sabados/actions'
 import type { DivisionActivity, OpponentClub, OpponentClubFull, EventBus } from '@/lib/queries/sabados'
 
@@ -90,7 +91,8 @@ function GlobalSetup({
   const [opponentIds, setOpponentIds] = useState<string[]>(detected?.opponentIds ?? [])
   const [applying, setApplying] = useState(false)
   const [appliedCount, setAppliedCount] = useState(0)
-  const [, startTransition] = useTransition()
+  const [appliedOk, setAppliedOk] = useState(false)
+  const router = useRouter()
 
   const configuredCount = activities.length
   const canApply = type !== ''
@@ -147,6 +149,9 @@ function GlobalSetup({
 
     onApplied(updated)
     setApplying(false)
+    setAppliedOk(true)
+    router.refresh()
+    setTimeout(() => setAppliedOk(false), 2500)
   }
 
   return (
@@ -199,15 +204,21 @@ function GlobalSetup({
         {/* Apply button */}
         {type && (
           <button
-            onClick={() => startTransition(handleApplyAll)}
+            onClick={handleApplyAll}
             disabled={applying}
-            className="w-full py-3 bg-gray-800 hover:bg-gray-900 disabled:bg-gray-400 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+            className={`w-full py-3 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
+              appliedOk
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-800 hover:bg-gray-900 disabled:bg-gray-400 text-white'
+            }`}
           >
             {applying ? (
               <>
                 <span className="animate-spin text-base">⟳</span>
                 Aplicando {appliedCount}/{divisions.length}...
               </>
+            ) : appliedOk ? (
+              '✓ Aplicado'
             ) : (
               `Aplicar a las ${divisions.length} divisiones ↓`
             )}
@@ -270,7 +281,7 @@ function VenueKanban({
 
   // Build buckets: Sin partido + Local + one per rival venue
   const buckets: Bucket[] = [
-    { key: 'no_game', label: 'Sin partido', icon: '🚫' },
+    { key: 'no_game', label: 'Sin confirmar', icon: '⏳' },
     { key: 'local',   label: 'Local',        icon: '🏠' },
     ...opponentClubs.flatMap(club =>
       club.venues.map(v => ({
