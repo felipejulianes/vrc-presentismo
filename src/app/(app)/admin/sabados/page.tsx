@@ -91,10 +91,16 @@ export default async function SabadosPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-xl font-bold text-gray-900">Fixture</h1>
           <p className="text-sm text-gray-500">Planificación de actividades del año</p>
         </div>
+        <Link
+          href="/admin/sabados/tabla"
+          className="px-3 py-1 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+        >
+          Tabla
+        </Link>
       </div>
 
       <div className="px-4">

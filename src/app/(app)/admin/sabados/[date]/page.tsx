@@ -5,6 +5,7 @@ import {
   getActivitiesForDate,
   getBusesForDate,
   getAllClubsFull,
+  type DivisionActivity,
 } from '@/lib/queries/sabados'
 import { SabadoSetupGrid } from '@/components/admin/SabadoSetupGrid'
 import { BusesManager } from '@/components/admin/BusesManager'
@@ -28,6 +29,42 @@ function isValidDate(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s))
 }
 
+function buildSummaryBanner(
+  activities: DivisionActivity[],
+  divNameById: Record<string, string>
+): { emoji: string; label: string; divNames: string[] }[] {
+  if (activities.length === 0) return []
+
+  // Group by activity type + location
+  const entrenamientos: string[] = []
+  const locales: string[] = []
+  const visitanteGroups: Record<string, string[]> = {}
+
+  for (const act of activities) {
+    const name = divNameById[act.division_id] ?? act.division_id
+    if (act.activity_type === 'entrenamiento') {
+      entrenamientos.push(name)
+    } else if (act.activity_type === 'partido') {
+      if (act.venue === 'local') {
+        locales.push(name)
+      } else {
+        const locationLabel =
+          act.location_venue_name ?? act.location_club_name ?? 'Por confirmar'
+        if (!visitanteGroups[locationLabel]) visitanteGroups[locationLabel] = []
+        visitanteGroups[locationLabel].push(name)
+      }
+    }
+  }
+
+  const lines: { emoji: string; label: string; divNames: string[] }[] = []
+  if (entrenamientos.length > 0) lines.push({ emoji: '🏃', label: 'Entrena', divNames: entrenamientos })
+  if (locales.length > 0) lines.push({ emoji: '⚽', label: 'Local', divNames: locales })
+  for (const [loc, divs] of Object.entries(visitanteGroups)) {
+    lines.push({ emoji: '✈️', label: `En ${loc}`, divNames: divs })
+  }
+  return lines
+}
+
 export default async function SabadoDatePage({ params }: PageProps) {
   const { date } = params
   if (!isValidDate(date)) notFound()
@@ -46,6 +83,11 @@ export default async function SabadoDatePage({ params }: PageProps) {
     getAllClubsFull(),
   ])
 
+  const divNameById: Record<string, string> = {}
+  for (const d of divisions) divNameById[d.id] = d.name
+
+  const bannerLines = buildSummaryBanner(activities, divNameById)
+
   return (
     <div className="pb-8">
       {/* Header */}
@@ -62,6 +104,18 @@ export default async function SabadoDatePage({ params }: PageProps) {
           </p>
         </div>
       </div>
+
+      {/* ── SUMMARY BANNER ────────────────────────────────────── */}
+      {bannerLines.length > 0 && (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 mx-4 mb-3 space-y-1">
+          {bannerLines.map(line => (
+            <p key={line.label} className="text-xs text-gray-600">
+              <span className="font-semibold">{line.emoji} {line.label}:</span>{' '}
+              {line.divNames.join(', ')}
+            </p>
+          ))}
+        </div>
+      )}
 
       {/* ── CONFIGURAR ACTIVIDADES ────────────────────────────── */}
       <div className="px-4 pb-5">
