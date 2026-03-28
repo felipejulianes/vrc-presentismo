@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { updateSchool, mergeSchools } from '@/app/(app)/admin/schools/actions'
+import { updateSchool, mergeSchools, createSchool } from '@/app/(app)/admin/schools/actions'
 import type { SchoolWithCount } from '@/lib/queries/schools'
 
 interface Props { schools: SchoolWithCount[] }
@@ -10,6 +10,9 @@ export function SchoolsManager({ schools: initialSchools }: Props) {
   const [schools, setSchools] = useState(initialSchools)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [mergingId, setMergingId] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newAliases, setNewAliases] = useState('')
   const [isPending, startTransition] = useTransition()
 
   const active = schools.filter(s => s.active)
@@ -29,6 +32,30 @@ export function SchoolsManager({ schools: initialSchools }: Props) {
     })
   }
 
+  function handleCreate() {
+    if (!newName.trim()) return
+    startTransition(async () => {
+      const created = await createSchool(newName.trim())
+      if (created) {
+        // Also save aliases if provided
+        if (newAliases.trim()) {
+          const fd = new FormData()
+          fd.append('id', created.id)
+          fd.append('name', created.name)
+          fd.append('aliases', newAliases.trim())
+          await updateSchool(fd)
+        }
+        setSchools(prev => [...prev, {
+          id: created.id, name: created.name,
+          aliases: newAliases.trim() || null, active: true, player_count: 0,
+        }])
+        setNewName('')
+        setNewAliases('')
+        setAdding(false)
+      }
+    })
+  }
+
   function handleDeactivate(id: string, name: string) {
     if (!confirm(`¿Desactivar "${name}"? Los jugadores asociados quedarán sin colegio asignado.`)) return
     const fd = new FormData()
@@ -43,6 +70,50 @@ export function SchoolsManager({ schools: initialSchools }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* Nuevo colegio */}
+      {adding ? (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-3 space-y-2">
+          <input
+            autoFocus
+            type="text"
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleCreate()}
+            placeholder="Nombre del colegio"
+            className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-vrc-green"
+          />
+          <input
+            type="text"
+            value={newAliases}
+            onChange={e => setNewAliases(e.target.value)}
+            placeholder='Aliases opcionales: "la 30, treinta" (separados por coma)'
+            className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-vrc-green"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={handleCreate}
+              disabled={!newName.trim() || isPending}
+              className="flex-1 py-1.5 bg-vrc-green text-white rounded-lg text-sm font-semibold disabled:opacity-40"
+            >
+              {isPending ? 'Agregando...' : 'Agregar colegio'}
+            </button>
+            <button
+              onClick={() => { setAdding(false); setNewName(''); setNewAliases('') }}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-600"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          className="w-full py-2.5 border border-dashed border-gray-300 rounded-xl text-sm text-gray-500 hover:text-vrc-green hover:border-vrc-green transition-colors"
+        >
+          + Agregar colegio
+        </button>
+      )}
+
       {/* Active schools */}
       <div className="space-y-2">
         {active.map(school => (
