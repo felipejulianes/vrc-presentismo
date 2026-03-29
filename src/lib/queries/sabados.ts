@@ -10,10 +10,11 @@ export type OpponentClub = {
 
 export type EventBus = {
   id: string
-  event_date: string
   label: string
-  driver_phone: string | null
   patente: string | null
+  driver_name: string | null
+  driver_phone: string | null
+  active: boolean
 }
 
 export type DivisionActivity = {
@@ -108,9 +109,9 @@ function mapActivity(r: Record<string, unknown>): DivisionActivity {
     location_venue_address: pickStr(r.location_venue, 'address'),
     location_venue_maps_url: pickStr(r.location_venue, 'maps_url'),
     bus_id: r.bus_id as string | null,
-    bus_label: Array.isArray(r.event_buses) ? (r.event_buses[0]?.label ?? null) : ((r.event_buses as Record<string, string> | null)?.label ?? null),
-    bus_driver_phone: Array.isArray(r.event_buses) ? (r.event_buses[0]?.driver_phone ?? null) : ((r.event_buses as Record<string, string> | null)?.driver_phone ?? null),
-    bus_patente: Array.isArray(r.event_buses) ? (r.event_buses[0]?.patente ?? null) : ((r.event_buses as Record<string, string> | null)?.patente ?? null),
+    bus_label: Array.isArray(r.buses) ? (r.buses[0]?.label ?? null) : ((r.buses as Record<string, string> | null)?.label ?? null),
+    bus_driver_phone: Array.isArray(r.buses) ? (r.buses[0]?.driver_phone ?? null) : ((r.buses as Record<string, string> | null)?.driver_phone ?? null),
+    bus_patente: Array.isArray(r.buses) ? (r.buses[0]?.patente ?? null) : ((r.buses as Record<string, string> | null)?.patente ?? null),
   }
 }
 
@@ -121,7 +122,7 @@ const ACTIVITY_SELECT = `
   opponent_clubs:opponent_club_id(name),
   location_club:location_club_id(name),
   location_venue:location_venue_id(name, address, maps_url),
-  event_buses(label, driver_phone, patente)
+  buses(label, driver_phone, patente, driver_name)
 `
 
 export async function getActivitiesForDate(date: string): Promise<DivisionActivity[]> {
@@ -150,12 +151,12 @@ export async function getActivityForDivisionDate(
   return activities.find(a => a.division_id === divisionId) ?? null
 }
 
-export async function getBusesForDate(date: string): Promise<EventBus[]> {
+export async function getAllBuses(): Promise<EventBus[]> {
   const supabase = await createClient()
   const { data } = await supabase
-    .from('event_buses')
-    .select('id, event_date, label, driver_phone, patente')
-    .eq('event_date', date)
+    .from('buses')
+    .select('id, label, patente, driver_name, driver_phone, active')
+    .eq('active', true)
     .order('label')
   return data ?? []
 }

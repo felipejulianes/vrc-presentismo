@@ -3,12 +3,11 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import {
   getActivitiesForDate,
-  getBusesForDate,
+  getAllBuses,
   getAllClubsFull,
   type DivisionActivity,
 } from '@/lib/queries/sabados'
 import { SabadoSetupGrid } from '@/components/admin/SabadoSetupGrid'
-import { BusesManager } from '@/components/admin/BusesManager'
 
 interface PageProps {
   params: { date: string }
@@ -79,7 +78,7 @@ export default async function SabadoDatePage({ params }: PageProps) {
       .order('sort_order')
       .then(r => r.data ?? []),
     getActivitiesForDate(date),
-    getBusesForDate(date),
+    getAllBuses(),
     getAllClubsFull(),
   ])
 
@@ -131,29 +130,44 @@ export default async function SabadoDatePage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* ── BONDIS ──────────────────────────────────────────── */}
-      <div className="px-4 pb-5">
-        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Bondis</h2>
-        <BusesManager date={date} buses={buses} />
-      </div>
-
-      {/* ── LINK A TERCER TIEMPO ─────────────────────────────── */}
-      <div className="px-4 pb-4">
-        <Link
-          href={`/admin/tercer-tiempo?date=${date}`}
-          className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3 hover:bg-gray-50"
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-xl">🥩</span>
-            <div>
-              <p className="text-sm font-medium text-gray-900">Tercer tiempo</p>
-              <p className="text-xs text-gray-400">Cantidades confirmadas y horario</p>
+      {/* ── BONDIS + TERCER TIEMPO ───────────────────────────── */}
+      <div className="px-4 pb-4 space-y-2">
+        <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
+          <Link
+            href="/admin/buses"
+            className="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🚌</span>
+              <div>
+                <p className="text-sm font-medium text-gray-900">Bondis</p>
+                <p className="text-xs text-gray-400">
+                  {buses.length > 0
+                    ? `${buses.length} disponibles — asignar en cada división arriba`
+                    : 'Sin bondis en catálogo'}
+                </p>
+              </div>
             </div>
-          </div>
-          <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </Link>
+            <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+          <Link
+            href={`/admin/tercer-tiempo?date=${date}`}
+            className="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🥩</span>
+              <div>
+                <p className="text-sm font-medium text-gray-900">Tercer tiempo</p>
+                <p className="text-xs text-gray-400">Cantidades confirmadas y horario</p>
+              </div>
+            </div>
+            <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
       </div>
     </div>
   )
