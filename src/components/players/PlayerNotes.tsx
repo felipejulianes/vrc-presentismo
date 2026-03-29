@@ -2,23 +2,13 @@
 
 import { useState, useTransition } from 'react'
 import { addNote, deleteNote } from '@/app/(app)/players/[playerId]/actions'
+import { getTodayISO, formatMediumDate } from '@/lib/utils/dates'
 
 export type PlayerNote = {
   id: string
   note_date: string
   content: string
   created_by: string | null
-}
-
-function formatDate(dateStr: string): string {
-  const [y, m, d] = dateStr.split('-')
-  const date = new Date(Number(y), Number(m) - 1, Number(d))
-  return date.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-function getTodayISO(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 }
 
 interface Props {
@@ -77,7 +67,7 @@ export function PlayerNotes({ playerId, notes, currentUserId }: Props) {
           {notes.map(n => (
             <div key={n.id} className="flex gap-3 px-4 py-3">
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-400 mb-0.5">{formatDate(n.note_date)}</p>
+                <p className="text-xs text-gray-400 mb-0.5">{formatMediumDate(n.note_date)}</p>
                 <p className="text-sm text-gray-800 whitespace-pre-wrap">{n.content}</p>
               </div>
               {n.created_by === currentUserId && (

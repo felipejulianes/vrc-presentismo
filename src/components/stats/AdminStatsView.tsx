@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend, LabelList,
 } from 'recharts'
 import type { DivisionStat, AdminTrendData } from '@/lib/queries/stats'
+import { formatShortDate } from '@/lib/utils/dates'
 
 interface Props {
   totalActive: number
@@ -15,38 +16,49 @@ interface Props {
   trendData: AdminTrendData
 }
 
-function formatShortDate(dateStr: string): string {
-  const [, m, d] = dateStr.split('-')
-  return `${d}/${m}`
-}
-
 type TrendLimit = 10 | 20 | 'year'
 
 export function AdminStatsView({ totalActive, came30d, divisionStats, trendData }: Props) {
   const [trendLimit, setTrendLimit] = useState<TrendLimit>(20)
 
-  const pct30d = totalActive > 0 ? Math.round((came30d / totalActive) * 100) : 0
+  const pct30d = useMemo(
+    () => totalActive > 0 ? Math.round((came30d / totalActive) * 100) : 0,
+    [totalActive, came30d]
+  )
 
   // Division bars — sorted descending by totalActive (more players first)
-  const sortedDivisions = [...divisionStats].sort((a, b) => b.totalActive - a.totalActive)
-  const maxTotal = Math.max(...sortedDivisions.map(d => d.totalActive), 1)
+  const sortedDivisions = useMemo(
+    () => [...divisionStats].sort((a, b) => b.totalActive - a.totalActive),
+    [divisionStats]
+  )
+  const maxTotal = useMemo(
+    () => Math.max(...sortedDivisions.map(d => d.totalActive), 1),
+    [sortedDivisions]
+  )
 
   // Trend dates — ascending order
   const currentYear = new Date().getFullYear()
-  const trendDates =
-    trendLimit === 'year'
-      ? trendData.dates.filter(d => d.startsWith(`${currentYear}-`))
-      : trendData.dates.slice(-trendLimit)
+  const trendDates = useMemo(
+    () =>
+      trendLimit === 'year'
+        ? trendData.dates.filter(d => d.startsWith(`${currentYear}-`))
+        : trendData.dates.slice(-trendLimit),
+    [trendLimit, trendData.dates, currentYear]
+  )
 
   // Chart data with precomputed _total for labels
-  const trendChartData = trendData.data
-    .filter(d => trendDates.includes(d.date))
-    .map(d => {
-      const total = trendData.divisions.reduce(
-        (sum, div) => sum + ((d[div.name] as number) ?? 0), 0
-      )
-      return { ...d, date: formatShortDate(d.date), _total: total }
-    })
+  const trendChartData = useMemo(
+    () =>
+      trendData.data
+        .filter(d => trendDates.includes(d.date))
+        .map(d => {
+          const total = trendData.divisions.reduce(
+            (sum, div) => sum + ((d[div.name] as number) ?? 0), 0
+          )
+          return { ...d, date: formatShortDate(d.date), _total: total }
+        }),
+    [trendData.data, trendData.divisions, trendDates]
+  )
 
   // Show total label on bars only when showing 10 sessions
   const showLabels = trendLimit === 10

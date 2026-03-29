@@ -26,6 +26,7 @@ export function SchoolCombobox({ schools, value, onChange }: Props) {
   const [input, setInput] = useState(value?.name ?? '')
   const [open, setOpen] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [addError, setAddError] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
   // Sync input when value changes externally
@@ -63,6 +64,7 @@ export function SchoolCombobox({ schools, value, onChange }: Props) {
   async function handleAddNew() {
     if (!q || adding) return
     setAdding(true)
+    setAddError(null)
     try {
       const supabase = createClient()
       const { data, error } = await supabase
@@ -70,7 +72,9 @@ export function SchoolCombobox({ schools, value, onChange }: Props) {
         .insert({ name: q.trim() })
         .select('id, name')
         .single()
-      if (!error && data) {
+      if (error) {
+        setAddError('No se pudo crear el colegio')
+      } else if (data) {
         onChange({ id: data.id, name: data.name })
         setInput(data.name)
         setOpen(false)
@@ -86,7 +90,7 @@ export function SchoolCombobox({ schools, value, onChange }: Props) {
         <input
           type="text"
           value={input}
-          onChange={e => { setInput(e.target.value); setOpen(true) }}
+          onChange={e => { setInput(e.target.value); setOpen(true); setAddError(null) }}
           onFocus={() => setOpen(true)}
           placeholder="Buscar colegio..."
           className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
@@ -144,6 +148,9 @@ export function SchoolCombobox({ schools, value, onChange }: Props) {
             )}
             {q && filtered.length === 0 && !q && (
               <p className="text-xs text-gray-400 text-center py-2">Sin resultados</p>
+            )}
+            {addError && (
+              <p className="text-xs text-red-600 bg-red-50 px-4 py-2 border-t border-red-100">{addError}</p>
             )}
           </div>
         </div>

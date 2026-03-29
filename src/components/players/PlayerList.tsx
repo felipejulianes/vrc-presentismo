@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Player, Division } from '@/types'
@@ -27,39 +27,46 @@ function formatBirthYear(birth_date: string | null): string | null {
 export function PlayerList({ players, divisions }: PlayerListProps) {
   const [search, setSearch] = useState('')
 
-  const filtered = players.filter(p => {
+  const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    return (
+    return players.filter(p =>
       p.first_name.toLowerCase().includes(q) ||
       p.last_name.toLowerCase().includes(q) ||
       (p.dni ?? '').includes(q) ||
       (p.sobrenombre ?? '').toLowerCase().includes(q)
     )
-  })
+  }, [players, search])
 
-  const divisionOrder = divisions.reduce<Record<string, number>>((acc, d) => {
-    acc[d.id] = d.sort_order
-    return acc
-  }, {})
-
-  const grouped = filtered.reduce<Record<string, PlayerWithDivision[]>>((acc, p) => {
-    const key = p.division_id
-    if (!acc[key]) acc[key] = []
-    acc[key].push(p)
-    return acc
-  }, {})
-
-  // Sort: activos primero, luego inactivos; dentro de cada grupo: apellido
-  for (const divId of Object.keys(grouped)) {
-    grouped[divId].sort((a, b) => {
-      if (a.inactivo !== b.inactivo) return a.inactivo ? 1 : -1
-      return a.last_name.localeCompare(b.last_name)
-    })
-  }
-
-  const sortedDivisionIds = Object.keys(grouped).sort(
-    (a, b) => (divisionOrder[a] ?? 99) - (divisionOrder[b] ?? 99)
+  const divisionOrder = useMemo(
+    () => divisions.reduce<Record<string, number>>((acc, d) => {
+      acc[d.id] = d.sort_order
+      return acc
+    }, {}),
+    [divisions]
   )
+
+  const { grouped, sortedDivisionIds } = useMemo(() => {
+    const g = filtered.reduce<Record<string, PlayerWithDivision[]>>((acc, p) => {
+      const key = p.division_id
+      if (!acc[key]) acc[key] = []
+      acc[key].push(p)
+      return acc
+    }, {})
+
+    // Sort: activos primero, luego inactivos; dentro de cada grupo: apellido
+    for (const divId of Object.keys(g)) {
+      g[divId].sort((a, b) => {
+        if (a.inactivo !== b.inactivo) return a.inactivo ? 1 : -1
+        return a.last_name.localeCompare(b.last_name)
+      })
+    }
+
+    const ids = Object.keys(g).sort(
+      (a, b) => (divisionOrder[a] ?? 99) - (divisionOrder[b] ?? 99)
+    )
+
+    return { grouped: g, sortedDivisionIds: ids }
+  }, [filtered, divisionOrder])
 
   return (
     <div className="flex flex-col">

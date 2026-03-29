@@ -7,6 +7,7 @@ import {
 } from 'recharts'
 import { AbsenteeCard } from './AbsenteeCard'
 import type { PlayerStat, SessionTrend, DivisionKpis } from '@/lib/queries/stats'
+import { formatShortDate } from '@/lib/utils/dates'
 
 type RankingMode = 'year' | 'days' | 'since'
 
@@ -18,11 +19,6 @@ interface StatsViewProps {
   statsSinceAlta: PlayerStat[]
   sessionTrend: SessionTrend[]
   currentYear: number
-}
-
-function formatShortDate(dateStr: string): string {
-  const [, m, d] = dateStr.split('-')
-  return `${d}/${m}`
 }
 
 const SESSION_LIMITS = [10, 20, 50] as const

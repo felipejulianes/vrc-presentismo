@@ -10,15 +10,40 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
   }
 
-  const body = await request.json()
-  const { divisionId, date, attendance } = body as {
-    divisionId: string
-    date: string
-    attendance: AttendanceState
+  let body: { divisionId?: string; date?: string; attendance?: AttendanceState }
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
+
+  const { divisionId, date, attendance } = body
 
   if (!divisionId || !date || !attendance) {
     return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 })
+  }
+
+  // Verificar rol del usuario
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const role = profile?.role
+
+  // Si es coach, verificar que tenga asignada esta división
+  if (role === 'coach') {
+    const { data: cd } = await supabase
+      .from('coach_divisions')
+      .select('division_id')
+      .eq('coach_id', user.id)
+      .eq('division_id', divisionId)
+      .maybeSingle()
+
+    if (!cd) {
+      return NextResponse.json({ error: 'No autorizado para esta división' }, { status: 403 })
+    }
   }
 
   // Crear o recuperar la sesión de entrenamiento

@@ -1,24 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { HoyDatePicker } from '@/components/admin/HoyDatePicker'
-
-function getDateISO(date: Date): string {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
-
-function formatDisplayDate(dateStr: string): string {
-  const [y, m, d] = dateStr.split('-')
-  const date = new Date(Number(y), Number(m) - 1, Number(d))
-  return date.toLocaleDateString('es-AR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
-}
+import { getTodayISO, formatFullDate } from '@/lib/utils/dates'
 
 interface PageProps {
   searchParams: { date?: string }
@@ -42,7 +25,7 @@ interface AttendanceRow {
 
 export default async function AdminHoyPage({ searchParams }: PageProps) {
   const supabase = await createClient()
-  const today = getDateISO(new Date())
+  const today = getTodayISO()
   const date = searchParams.date ?? today
   const isToday = date === today
 
@@ -105,7 +88,7 @@ export default async function AdminHoyPage({ searchParams }: PageProps) {
           <h1 className="text-xl font-bold text-gray-900">
             {isToday ? 'Hoy' : 'Asistencia del día'}
           </h1>
-          <p className="text-sm text-gray-500 capitalize">{formatDisplayDate(date)}</p>
+          <p className="text-sm text-gray-500 capitalize">{formatFullDate(date)}</p>
         </div>
         <HoyDatePicker value={date} />
       </div>

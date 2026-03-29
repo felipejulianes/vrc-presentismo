@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { daysAgoISO } from '@/lib/utils/dates'
 
 // Divisiones visibles (solo infantiles, M6-M14)
 const JUVENILE_NAMES = ['M15', 'M16', 'M17', 'M19', 'alumni']
@@ -126,7 +127,7 @@ export async function getDivisionKpis(divisionId: string): Promise<DivisionKpis>
   const [{ count: totalActive }, recentResult] = await Promise.all([
     supabase
       .from('players')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('division_id', divisionId)
       .eq('active', true)
       .neq('inactivo', true),
@@ -134,7 +135,7 @@ export async function getDivisionKpis(divisionId: string): Promise<DivisionKpis>
       .from('training_sessions')
       .select('id')
       .eq('division_id', divisionId)
-      .gte('session_date', thirtyDaysAgo()),
+      .gte('session_date', daysAgoISO(30)),
   ])
 
   let came30d = 0
@@ -186,7 +187,7 @@ export async function getAdminDivisionStats(): Promise<DivisionStat[]> {
       .from('training_sessions')
       .select('id, division_id')
       .in('division_id', divisionIds)
-      .gte('session_date', thirtyDaysAgo()),
+      .gte('session_date', daysAgoISO(30)),
   ])
 
   // Players per division
@@ -324,10 +325,3 @@ export async function getAdminTrendData(limit = 20): Promise<AdminTrendData> {
   return { dates, divisions: divisionsMeta, data: chartData, totalByDate }
 }
 
-// ── Helpers ─────────────────────────────────────────────────
-
-function thirtyDaysAgo(): string {
-  const d = new Date()
-  d.setDate(d.getDate() - 30)
-  return d.toISOString().split('T')[0]
-}

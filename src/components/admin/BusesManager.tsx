@@ -13,14 +13,18 @@ export function BusesManager({ buses: initialBuses }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
 
   const active = buses.filter(b => b.active)
   const inactive = buses.filter(b => !b.active)
 
   function handleCreate(fd: FormData) {
+    setError(null)
     startTransition(async () => {
       const res = await createBus(fd)
-      if (res.bus) {
+      if (res.error) {
+        setError(res.error)
+      } else if (res.bus) {
         setBuses(prev => [...prev, res.bus!])
         setAdding(false)
       }
@@ -29,9 +33,12 @@ export function BusesManager({ buses: initialBuses }: Props) {
 
   function handleUpdate(fd: FormData) {
     const id = fd.get('id') as string
+    setError(null)
     startTransition(async () => {
       const res = await updateBus(fd)
-      if (res.success) {
+      if (res.error) {
+        setError(res.error)
+      } else if (res.success) {
         setBuses(prev => prev.map(b => b.id === id ? {
           ...b,
           label: fd.get('label') as string,
@@ -45,14 +52,22 @@ export function BusesManager({ buses: initialBuses }: Props) {
   }
 
   function handleToggle(id: string, active: boolean) {
+    setError(null)
     startTransition(async () => {
-      await toggleBusActive(id, active)
-      setBuses(prev => prev.map(b => b.id === id ? { ...b, active } : b))
+      const res = await toggleBusActive(id, active)
+      if (res.error) {
+        setError(res.error)
+      } else {
+        setBuses(prev => prev.map(b => b.id === id ? { ...b, active } : b))
+      }
     })
   }
 
   return (
     <div className="space-y-4">
+      {error && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">{error}</p>
+      )}
       {/* Activos */}
       <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
         {active.length === 0 && !adding && (

@@ -10,9 +10,9 @@ export default async function AdminPage() {
     { count: sessionCount },
     { data: divisionStats },
   ] = await Promise.all([
-    supabase.from('players').select('*', { count: 'exact', head: true }).eq('active', true),
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'coach'),
-    supabase.from('training_sessions').select('*', { count: 'exact', head: true })
+    supabase.from('players').select('id', { count: 'exact', head: true }).eq('active', true),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'coach'),
+    supabase.from('training_sessions').select('id', { count: 'exact', head: true })
       .gte('session_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]),
     supabase.from('divisions')
       .select('id, name, players(count)')
