@@ -77,7 +77,7 @@ export function AbsenteeCard({ stat }: AbsenteeCardProps) {
           target="_blank"
           rel="noopener noreferrer"
           className="flex-shrink-0 w-9 h-9 bg-green-500 hover:bg-green-600 rounded-full flex items-center justify-center transition-colors"
-          aria-label={`Contactar a padre/madre de ${fullName}`}
+          aria-label={`Contactar al referente de ${fullName}`}
         >
           <WhatsAppIcon className="w-5 h-5 text-white" />
         </a>

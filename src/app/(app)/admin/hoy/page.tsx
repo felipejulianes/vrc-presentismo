@@ -55,13 +55,14 @@ export default async function AdminHoyPage({ searchParams }: PageProps) {
     attendance = data ?? []
   }
 
-  const countBySession: Record<string, { present: number; total: number }> = {}
+  const countBySession: Record<string, { present: number; total: number; hasRecords: boolean }> = {}
   for (const s of daySessions) {
-    countBySession[s.id] = { present: 0, total: 0 }
+    countBySession[s.id] = { present: 0, total: 0, hasRecords: false }
   }
   for (const r of attendance) {
     if (countBySession[r.session_id]) {
       countBySession[r.session_id].total++
+      countBySession[r.session_id].hasRecords = true
       if (r.present) countBySession[r.session_id].present++
     }
   }
@@ -131,6 +132,7 @@ export default async function AdminHoyPage({ searchParams }: PageProps) {
           {allDivisions.map(div => {
             const sid = sessionByDiv[div.id]
             const counts = sid ? countBySession[sid] : null
+            const hasRecords = counts?.hasRecords ?? false
             const pct = counts && counts.total > 0
               ? Math.round((counts.present / counts.total) * 100)
               : null
@@ -139,14 +141,16 @@ export default async function AdminHoyPage({ searchParams }: PageProps) {
               <div key={div.id} className="flex items-center gap-3 px-4 py-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-800">{div.name}</p>
-                  {counts ? (
+                  {counts && hasRecords ? (
                     <p className="text-xs text-gray-400">{counts.present}/{counts.total} presentes</p>
+                  ) : counts ? (
+                    <p className="text-xs text-amber-500">Sin lista</p>
                   ) : (
                     <p className="text-xs text-gray-300">Sin entrenamiento</p>
                   )}
                 </div>
 
-                {counts && pct !== null ? (
+                {counts && hasRecords && pct !== null ? (
                   <div className="flex items-center gap-2 w-28">
                     <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
                       <div

@@ -72,6 +72,9 @@ export default async function SabadosPage() {
   const extraDates = Object.keys(summaryByDate).filter(d => !saturdays.includes(d))
   const allDates = [...saturdays, ...extraDates].sort()
 
+  const upcomingDates = allDates.filter(d => d >= todayISO)
+  const pastDates = allDates.filter(d => d < todayISO).reverse()
+
   function buildPreview(s: DateSummary | undefined): string {
     if (!s) return 'Sin configurar'
     const parts: string[] = []
@@ -81,6 +84,36 @@ export default async function SabadosPage() {
     }
     if (s.hasEntrenamiento) parts.push('🏃 Entrena')
     return parts.join(' · ') || `${s.count} div.`
+  }
+
+  function DateItem({ date }: { date: string }) {
+    const summary = summaryByDate[date]
+    const isPast = date < todayISO
+    const isToday = date === todayISO
+    const preview = buildPreview(summary)
+    const isConfigured = !!summary
+
+    return (
+      <Link
+        href={`/admin/sabados/${date}`}
+        className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100"
+      >
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-semibold capitalize truncate ${isPast && !isToday ? 'text-gray-400' : 'text-gray-900'}`}>
+            {formatDate(date)}
+            {isToday && (
+              <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Hoy</span>
+            )}
+          </p>
+          <p className={`text-xs truncate ${isConfigured ? (isPast && !isToday ? 'text-gray-400' : 'text-gray-600') : (isPast ? 'text-gray-300' : 'text-gray-400')}`}>
+            {preview}
+          </p>
+        </div>
+        <svg className="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </Link>
+    )
   }
 
   return (
@@ -103,39 +136,26 @@ export default async function SabadosPage() {
         </Link>
       </div>
 
-      <div className="px-4">
-        <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
-          {allDates.map(date => {
-            const summary = summaryByDate[date]
-            const isPast = date < todayISO
-            const isToday = date === todayISO
-            const preview = buildPreview(summary)
-            const isConfigured = !!summary
+      <div className="px-4 space-y-4">
+        {/* Próximos */}
+        {upcomingDates.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Próximos</p>
+            <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
+              {upcomingDates.map(date => <DateItem key={date} date={date} />)}
+            </div>
+          </div>
+        )}
 
-            return (
-              <Link
-                key={date}
-                href={`/admin/sabados/${date}`}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold capitalize truncate ${isPast && !isToday ? 'text-gray-400' : 'text-gray-900'}`}>
-                    {formatDate(date)}
-                    {isToday && (
-                      <span className="ml-2 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Hoy</span>
-                    )}
-                  </p>
-                  <p className={`text-xs truncate ${isConfigured ? (isPast && !isToday ? 'text-gray-400' : 'text-gray-600') : (isPast ? 'text-gray-300' : 'text-gray-400')}`}>
-                    {preview}
-                  </p>
-                </div>
-                <svg className="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            )
-          })}
-        </div>
+        {/* Anteriores */}
+        {pastDates.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Anteriores</p>
+            <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
+              {pastDates.map(date => <DateItem key={date} date={date} />)}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -161,12 +161,12 @@ export default async function PlayerDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Contacto padre/madre */}
+      {/* Contacto referente */}
       <div className="px-4 pb-4">
         <h2 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-wide">Contacto</h2>
         <div className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100">
           <div className="flex items-center px-4 py-3 gap-4">
-            <span className="text-sm text-gray-500 w-36 flex-shrink-0">Padre / Madre</span>
+            <span className="text-sm text-gray-500 w-36 flex-shrink-0">Referente</span>
             <span className="text-sm text-gray-900">{player.parent_name ?? '—'}</span>
           </div>
           <div className="flex items-center px-4 py-3 gap-4">

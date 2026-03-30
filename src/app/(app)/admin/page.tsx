@@ -10,10 +10,20 @@ export default async function AdminPage() {
     { count: sessionCount },
     { data: divisionStats },
   ] = await Promise.all([
-    supabase.from('players').select('id', { count: 'exact', head: true }).eq('active', true),
+    supabase.from('players').select('id', { count: 'exact', head: true }).eq('active', true).eq('inactivo', false),
     supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'coach'),
-    supabase.from('training_sessions').select('id', { count: 'exact', head: true })
-      .gte('session_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]),
+    (() => {
+      const firstOfMonth = new Date()
+      firstOfMonth.setDate(1)
+      firstOfMonth.setHours(0, 0, 0, 0)
+      const firstOfMonthISO = firstOfMonth.toISOString().split('T')[0]
+      const firstOfNextMonth = new Date(firstOfMonth)
+      firstOfNextMonth.setMonth(firstOfNextMonth.getMonth() + 1)
+      const firstOfNextMonthISO = firstOfNextMonth.toISOString().split('T')[0]
+      return supabase.from('training_sessions').select('id', { count: 'exact', head: true })
+        .gte('session_date', firstOfMonthISO)
+        .lt('session_date', firstOfNextMonthISO)
+    })(),
     supabase.from('divisions')
       .select('id, name, players(count)')
       .eq('is_juvenile', false)

@@ -75,7 +75,7 @@ export function AdminStatsView({ totalActive, came30d, divisionStats, trendData 
       <div className="px-4 pb-4 grid grid-cols-2 gap-3">
         <div className="bg-white border border-gray-200 rounded-2xl p-4 text-center">
           <p className="text-3xl font-bold text-gray-900">{totalActive}</p>
-          <p className="text-xs text-gray-500 mt-1">Jugadores activos</p>
+          <p className="text-xs text-gray-500 mt-1">Jugadores</p>
         </div>
         <div className={`rounded-2xl p-4 text-center border ${
           pct30d >= 70 ? 'bg-green-50 border-green-200' : pct30d >= 40 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'
