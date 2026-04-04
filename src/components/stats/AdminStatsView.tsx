@@ -2,24 +2,30 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend, LabelList,
+  ResponsiveContainer, LabelList,
 } from 'recharts'
-import type { DivisionStat, AdminTrendData } from '@/lib/queries/stats'
+import type { DivisionStat, AdminTrendData, SessionType } from '@/lib/queries/stats'
 import { formatShortDate } from '@/lib/utils/dates'
 
 interface Props {
   totalActive: number
   came30d: number
+  avgPerSabado: number
+  sessionType: SessionType
   divisionStats: DivisionStat[]
   trendData: AdminTrendData
 }
 
 type TrendLimit = 10 | 20 | 'year'
 
-export function AdminStatsView({ totalActive, came30d, divisionStats, trendData }: Props) {
+export function AdminStatsView({ totalActive, came30d, avgPerSabado, sessionType, divisionStats, trendData }: Props) {
+  const router = useRouter()
   const [trendLimit, setTrendLimit] = useState<TrendLimit>(20)
+
+  const handleTipoChange = (t: SessionType) => router.push(`/stats?tipo=${t}`)
 
   const pct30d = useMemo(
     () => totalActive > 0 ? Math.round((came30d / totalActive) * 100) : 0,
@@ -71,8 +77,25 @@ export function AdminStatsView({ totalActive, came30d, divisionStats, trendData 
         <p className="text-sm text-gray-500">Todas las divisiones · M6 a M14</p>
       </div>
 
-      {/* KPI cards */}
-      <div className="px-4 pb-4 grid grid-cols-2 gap-3">
+      {/* Session type toggle */}
+      <div className="px-4 pb-3">
+        <div className="flex bg-gray-100 rounded-lg p-0.5 gap-0.5 w-fit">
+          {(['sabado', 'miercoles', 'todo'] as SessionType[]).map(t => (
+            <button
+              key={t}
+              onClick={() => handleTipoChange(t)}
+              className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
+                sessionType === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+              }`}
+            >
+              {t === 'sabado' ? 'Sábado' : t === 'miercoles' ? 'Miércoles' : 'Todo'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* KPI cards — 3 columns */}
+      <div className="px-4 pb-4 grid grid-cols-3 gap-3">
         <div className="bg-white border border-gray-200 rounded-2xl p-4 text-center">
           <p className="text-3xl font-bold text-gray-900">{totalActive}</p>
           <p className="text-xs text-gray-500 mt-1">Jugadores</p>
@@ -84,9 +107,13 @@ export function AdminStatsView({ totalActive, came30d, divisionStats, trendData 
             {came30d}
           </p>
           <p className={`text-xs mt-1 ${pct30d >= 70 ? 'text-green-600' : pct30d >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
-            Vinieron últimos 30d
+            Vinieron últ. 30d
           </p>
           <p className="text-xs text-gray-400 mt-0.5">{pct30d}% del plantel</p>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 text-center">
+          <p className="text-3xl font-bold text-gray-900">{avgPerSabado}</p>
+          <p className="text-xs text-gray-500 mt-1">Prom. por sábado</p>
         </div>
       </div>
 
@@ -131,7 +158,7 @@ export function AdminStatsView({ totalActive, came30d, divisionStats, trendData 
         <p className="text-xs text-gray-400 mt-2 px-1">Tocá una división para ver el detalle por jugador</p>
       </div>
 
-      {/* Stacked trend chart */}
+      {/* Simple bar chart — total por fecha */}
       {trendData.dates.length > 0 && (
         <div className="px-4 pb-4">
           <div className="flex items-center justify-between mb-3">
@@ -172,56 +199,11 @@ export function AdminStatsView({ totalActive, came30d, divisionStats, trendData 
                 <Tooltip
                   contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e5e7eb' }}
                 />
-                {/* Bars in ascending order: M6 at bottom, M14 at top */}
-                {trendData.divisions.map((div, i) => {
-                  const isTop = i === trendData.divisions.length - 1
-                  return (
-                    <Bar
-                      key={div.id}
-                      dataKey={div.name}
-                      stackId="a"
-                      fill={div.color}
-                      maxBarSize={32}
-                    >
-                      {/* Total label only on the topmost bar, only when showing 10 */}
-                      {isTop && showLabels && (
-                        <LabelList
-                          dataKey="_total"
-                          position="top"
-                          style={{ fontSize: 9, fill: '#6b7280', fontWeight: 600 }}
-                        />
-                      )}
-                    </Bar>
-                  )
-                })}
-                {/* Custom legend — reversed so M14 is first (top) and M6 is last (bottom) */}
-                <Legend
-                  iconType="square"
-                  iconSize={8}
-                  wrapperStyle={{ fontSize: 10, paddingTop: 8 }}
-                  formatter={(value, entry, index) => {
-                    // Reverse by index so highest division appears first in legend
-                    void entry; void index
-                    return value
-                  }}
-                  content={(props) => {
-                    const { payload } = props
-                    const reversed = [...(payload ?? [])].reverse()
-                    return (
-                      <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 pt-2">
-                        {reversed.map((entry, i) => (
-                          <span key={i} className="flex items-center gap-1 text-[10px] text-gray-600">
-                            <span
-                              className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
-                              style={{ background: entry.color }}
-                            />
-                            {entry.value}
-                          </span>
-                        ))}
-                      </div>
-                    )
-                  }}
-                />
+                <Bar dataKey="_total" fill="#2b7a2b" maxBarSize={32} radius={[3, 3, 0, 0]}>
+                  {showLabels && (
+                    <LabelList dataKey="_total" position="top" style={{ fontSize: 9, fill: '#6b7280', fontWeight: 600 }} />
+                  )}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -293,6 +275,38 @@ export function AdminStatsView({ totalActive, came30d, divisionStats, trendData 
               <p className="text-xs text-gray-400 mt-1.5 px-1">Deslizá para ver todas las fechas →</p>
             </div>
           )}
+
+          {/* Per-division charts */}
+          <div className="mt-6">
+            <p className="text-sm font-semibold text-gray-700 mb-3">Por división</p>
+            <div className="space-y-4">
+              {trendData.divisions.map(div => {
+                const divData = trendChartData.map(d => ({
+                  date: d.date,
+                  value: (d as Record<string, number | string>)[div.name] as number ?? 0,
+                }))
+                const hasData = divData.some(d => d.value > 0)
+                if (!hasData) return null
+                return (
+                  <div key={div.id} className="bg-white border border-gray-200 rounded-2xl p-3">
+                    <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-sm" style={{ background: div.color }} />
+                      {div.name}
+                    </p>
+                    <ResponsiveContainer width="100%" height={120}>
+                      <BarChart data={divData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="date" tick={{ fontSize: 8, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 9, fill: '#9ca3af' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                        <Tooltip contentStyle={{ fontSize: 10, borderRadius: 8 }} />
+                        <Bar dataKey="value" fill={div.color} maxBarSize={24} radius={[2, 2, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -1,11 +1,19 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getDivisionsForUser } from '@/lib/queries/players'
-import { getAdminDivisionStats, getAdminTrendData } from '@/lib/queries/stats'
+import {
+  getAdminDivisionStats,
+  getAdminTrendData,
+  getAdminKpis,
+  type SessionType,
+} from '@/lib/queries/stats'
 import { AdminStatsView } from '@/components/stats/AdminStatsView'
 import { StatsDivisionSelector } from './StatsDivisionSelector'
 
-export default async function StatsPage() {
+export default async function StatsPage({ searchParams }: { searchParams: Promise<{ tipo?: string }> }) {
+  const { tipo } = await searchParams
+  const sessionType: SessionType = (tipo === 'miercoles' || tipo === 'todo') ? tipo : 'sabado'
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = await supabase
@@ -16,18 +24,18 @@ export default async function StatsPage() {
 
   // Admin → vista general de todas las divisiones
   if (profile?.role === 'admin') {
-    const [divisionStats, trendData] = await Promise.all([
-      getAdminDivisionStats(),
-      getAdminTrendData(100),
+    const [kpis, divisionStats, trendData] = await Promise.all([
+      getAdminKpis(sessionType),
+      getAdminDivisionStats(sessionType),
+      getAdminTrendData(100, sessionType),
     ])
-
-    const totalActive = divisionStats.reduce((s, d) => s + d.totalActive, 0)
-    const came30d = divisionStats.reduce((s, d) => s + d.came30d, 0)
 
     return (
       <AdminStatsView
-        totalActive={totalActive}
-        came30d={came30d}
+        totalActive={kpis.totalActive}
+        came30d={kpis.came30d}
+        avgPerSabado={kpis.avgPerSabado}
+        sessionType={sessionType}
         divisionStats={divisionStats}
         trendData={trendData}
       />

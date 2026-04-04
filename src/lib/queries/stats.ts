@@ -4,6 +4,8 @@ import { daysAgoISO } from '@/lib/utils/dates'
 // Divisiones visibles (solo infantiles, M6-M14)
 const JUVENILE_NAMES = ['M15', 'M16', 'M17', 'M19', 'alumni']
 
+export type SessionType = 'sabado' | 'miercoles' | 'todo'
+
 export type PlayerStat = {
   player_id: string
   first_name: string
@@ -72,15 +74,21 @@ export type SessionTrend = {
   attendance_pct: number | null
 }
 
-export async function getSessionTrend(divisionId: string, limit = 50): Promise<SessionTrend[]> {
+export async function getSessionTrend(divisionId: string, limit = 50, sessionType?: SessionType): Promise<SessionTrend[]> {
   const supabase = await createClient()
 
-  const { data: sessions } = await supabase
+  let query = supabase
     .from('training_sessions')
     .select('id, session_date')
     .eq('division_id', divisionId)
     .order('session_date', { ascending: false })
     .limit(limit)
+
+  if (sessionType && sessionType !== 'todo') {
+    query = query.eq('session_type', sessionType)
+  }
+
+  const { data: sessions } = await query
 
   if (!sessions || sessions.length === 0) return []
 
@@ -121,8 +129,18 @@ export type DivisionKpis = {
   came30d: number
 }
 
-export async function getDivisionKpis(divisionId: string): Promise<DivisionKpis> {
+export async function getDivisionKpis(divisionId: string, sessionType?: SessionType): Promise<DivisionKpis> {
   const supabase = await createClient()
+
+  let sessionsQuery = supabase
+    .from('training_sessions')
+    .select('id')
+    .eq('division_id', divisionId)
+    .gte('session_date', daysAgoISO(30))
+
+  if (sessionType && sessionType !== 'todo') {
+    sessionsQuery = sessionsQuery.eq('session_type', sessionType)
+  }
 
   const [{ count: totalActive }, recentResult] = await Promise.all([
     supabase
@@ -131,11 +149,7 @@ export async function getDivisionKpis(divisionId: string): Promise<DivisionKpis>
       .eq('division_id', divisionId)
       .eq('active', true)
       .neq('inactivo', true),
-    supabase
-      .from('training_sessions')
-      .select('id')
-      .eq('division_id', divisionId)
-      .gte('session_date', daysAgoISO(30)),
+    sessionsQuery,
   ])
 
   let came30d = 0
@@ -163,7 +177,7 @@ export type DivisionStat = {
   came30d: number
 }
 
-export async function getAdminDivisionStats(): Promise<DivisionStat[]> {
+export async function getAdminDivisionStats(sessionType?: SessionType): Promise<DivisionStat[]> {
   const supabase = await createClient()
 
   const { data: divisions } = await supabase
@@ -176,6 +190,16 @@ export async function getAdminDivisionStats(): Promise<DivisionStat[]> {
 
   const divisionIds = divisions.map((d: { id: string }) => d.id)
 
+  let sessionsQuery = supabase
+    .from('training_sessions')
+    .select('id, division_id')
+    .in('division_id', divisionIds)
+    .gte('session_date', daysAgoISO(30))
+
+  if (sessionType && sessionType !== 'todo') {
+    sessionsQuery = sessionsQuery.eq('session_type', sessionType)
+  }
+
   const [playersRes, recentSessionsRes] = await Promise.all([
     supabase
       .from('players')
@@ -183,11 +207,7 @@ export async function getAdminDivisionStats(): Promise<DivisionStat[]> {
       .eq('active', true)
       .neq('inactivo', true)
       .in('division_id', divisionIds),
-    supabase
-      .from('training_sessions')
-      .select('id, division_id')
-      .in('division_id', divisionIds)
-      .gte('session_date', daysAgoISO(30)),
+    sessionsQuery,
   ])
 
   // Players per division
@@ -228,6 +248,90 @@ export async function getAdminDivisionStats(): Promise<DivisionStat[]> {
   }))
 }
 
+// ── Admin KPIs ──────────────────────────────────────────────
+
+export type AdminKpis = {
+  totalActive: number
+  came30d: number
+  avgPerSabado: number
+}
+
+export async function getAdminKpis(sessionType: SessionType = 'sabado'): Promise<AdminKpis> {
+  const supabase = await createClient()
+
+  // Divisiones juveniles (M6-M14, sin M15+)
+  const { data: divisions } = await supabase
+    .from('divisions')
+    .select('id')
+    .not('name', 'in', `("M15","M16","M17","M19","alumni")`)
+
+  const divisionIds = (divisions ?? []).map((d: { id: string }) => d.id)
+
+  const [playersRes, sessionsRes] = await Promise.all([
+    supabase
+      .from('players')
+      .select('id', { count: 'exact', head: true })
+      .eq('active', true)
+      .neq('inactivo', true)
+      .in('division_id', divisionIds),
+    supabase
+      .from('training_sessions')
+      .select('id, session_date, session_type')
+      .in('division_id', divisionIds)
+      .gte('session_date', daysAgoISO(90)),
+  ])
+
+  const sessions = sessionsRes.data ?? []
+
+  // Sesiones de los últimos 30 días para came30d
+  const cutoff30 = daysAgoISO(30)
+  const recent30 = sessions.filter(s => s.session_date >= cutoff30)
+
+  // Apply sessionType filter for came30d
+  const filtered30 = sessionType !== 'todo'
+    ? recent30.filter(s => s.session_type === sessionType)
+    : recent30
+
+  let came30d = 0
+  if (filtered30.length > 0) {
+    const ids30 = filtered30.map(s => s.id)
+    const { data: records } = await supabase
+      .from('attendance_records')
+      .select('player_id')
+      .in('session_id', ids30)
+      .eq('present', true)
+    came30d = new Set((records ?? []).map((r: { player_id: string }) => r.player_id)).size
+  }
+
+  // Avg per sábado: sesiones de tipo sábado en los últimos 90 días
+  const sabadoSessions = sessions.filter(s => s.session_type === 'sabado')
+  let avgPerSabado = 0
+  if (sabadoSessions.length > 0) {
+    const sabadoIds = sabadoSessions.map(s => s.id)
+    const { data: sabadoRecords } = await supabase
+      .from('attendance_records')
+      .select('session_id')
+      .in('session_id', sabadoIds)
+      .eq('present', true)
+
+    // group by session
+    const countBySess: Record<string, number> = {}
+    for (const r of sabadoRecords ?? []) {
+      countBySess[r.session_id] = (countBySess[r.session_id] ?? 0) + 1
+    }
+    const counts = Object.values(countBySess).filter(n => n > 0)
+    avgPerSabado = counts.length > 0
+      ? Math.round(counts.reduce((s, n) => s + n, 0) / counts.length)
+      : 0
+  }
+
+  return {
+    totalActive: playersRes.count ?? 0,
+    came30d,
+    avgPerSabado,
+  }
+}
+
 // ── Admin trend ─────────────────────────────────────────────
 
 export const DIVISION_COLORS = [
@@ -249,7 +353,7 @@ export type AdminTrendData = {
   totalByDate: number[]
 }
 
-export async function getAdminTrendData(limit = 20): Promise<AdminTrendData> {
+export async function getAdminTrendData(limit = 20, sessionType?: SessionType): Promise<AdminTrendData> {
   const supabase = await createClient()
 
   const { data: divisions } = await supabase
@@ -264,11 +368,17 @@ export async function getAdminTrendData(limit = 20): Promise<AdminTrendData> {
 
   const divisionIds = divisions.map((d: { id: string }) => d.id)
 
-  const { data: sessions } = await supabase
+  let sessionsQuery = supabase
     .from('training_sessions')
     .select('id, session_date, division_id')
     .in('division_id', divisionIds)
     .order('session_date', { ascending: false })
+
+  if (sessionType && sessionType !== 'todo') {
+    sessionsQuery = sessionsQuery.eq('session_type', sessionType)
+  }
+
+  const { data: sessions } = await sessionsQuery
 
   // Unique dates (last N)
   const dateSet = new Set<string>()
@@ -324,4 +434,3 @@ export async function getAdminTrendData(limit = 20): Promise<AdminTrendData> {
 
   return { dates, divisions: divisionsMeta, data: chartData, totalByDate }
 }
-
