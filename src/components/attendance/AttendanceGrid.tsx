@@ -104,7 +104,7 @@ export function AttendanceGrid({
       </div>
 
       {/* Grilla */}
-      <div className="flex-1 px-4">
+      <div className="flex-1 px-4 pb-24">
         {filtered.length === 0 ? (
           <p className="text-center text-gray-400 text-sm py-8">
             {search ? 'No se encontraron jugadores' : 'No hay jugadores en esta división'}
