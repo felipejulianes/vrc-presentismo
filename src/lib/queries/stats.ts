@@ -81,6 +81,7 @@ export async function getSessionTrend(divisionId: string, limit = 50, sessionTyp
     .from('training_sessions')
     .select('id, session_date')
     .eq('division_id', divisionId)
+    .lte('session_date', new Date().toISOString().split('T')[0])
     .order('session_date', { ascending: false })
     .limit(limit)
 
@@ -258,6 +259,7 @@ export type AdminKpis = {
 
 export async function getAdminKpis(sessionType: SessionType = 'sabado'): Promise<AdminKpis> {
   const supabase = await createClient()
+  const today = new Date().toISOString().split('T')[0]
 
   // Divisiones juveniles (M6-M14, sin M15+)
   const { data: divisions } = await supabase
@@ -278,7 +280,8 @@ export async function getAdminKpis(sessionType: SessionType = 'sabado'): Promise
       .from('training_sessions')
       .select('id, session_date, session_type')
       .in('division_id', divisionIds)
-      .gte('session_date', daysAgoISO(90)),
+      .gte('session_date', daysAgoISO(90))
+      .lte('session_date', today),
   ])
 
   const sessions = sessionsRes.data ?? []
@@ -303,11 +306,13 @@ export async function getAdminKpis(sessionType: SessionType = 'sabado'): Promise
     came30d = new Set((records ?? []).map((r: { player_id: string }) => r.player_id)).size
   }
 
-  // Avg per sábado: sesiones de tipo sábado en los últimos 90 días
-  const sabadoSessions = sessions.filter(s => s.session_type === 'sabado')
+  // Avg per session: filter by sessionType
+  const filteredForAvg = sessionType === 'todo'
+    ? sessions
+    : sessions.filter(s => s.session_type === sessionType)
   let avgPerSabado = 0
-  if (sabadoSessions.length > 0) {
-    const sabadoIds = sabadoSessions.map(s => s.id)
+  if (filteredForAvg.length > 0) {
+    const sabadoIds = filteredForAvg.map(s => s.id)
     const { data: sabadoRecords } = await supabase
       .from('attendance_records')
       .select('session_id')
@@ -321,7 +326,7 @@ export async function getAdminKpis(sessionType: SessionType = 'sabado'): Promise
     }
     const counts = Object.values(countBySess).filter(n => n > 0)
     avgPerSabado = counts.length > 0
-      ? Math.round(counts.reduce((s, n) => s + n, 0) / counts.length)
+      ? Math.round(counts.reduce((sum, n) => sum + n, 0) / counts.length)
       : 0
   }
 
@@ -372,6 +377,7 @@ export async function getAdminTrendData(limit = 20, sessionType?: SessionType): 
     .from('training_sessions')
     .select('id, session_date, division_id')
     .in('division_id', divisionIds)
+    .lte('session_date', new Date().toISOString().split('T')[0])
     .order('session_date', { ascending: false })
 
   if (sessionType && sessionType !== 'todo') {

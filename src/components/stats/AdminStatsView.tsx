@@ -107,13 +107,13 @@ export function AdminStatsView({ totalActive, came30d, avgPerSabado, sessionType
             {came30d}
           </p>
           <p className={`text-xs mt-1 ${pct30d >= 70 ? 'text-green-600' : pct30d >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
-            Vinieron últ. 30d
+            últ. 30 días
           </p>
           <p className="text-xs text-gray-400 mt-0.5">{pct30d}% del plantel</p>
         </div>
         <div className="bg-white border border-gray-200 rounded-2xl p-4 text-center">
           <p className="text-3xl font-bold text-gray-900">{avgPerSabado}</p>
-          <p className="text-xs text-gray-500 mt-1">Prom. por sábado</p>
+          <p className="text-xs text-gray-500 mt-1">Promedio</p>
         </div>
       </div>
 

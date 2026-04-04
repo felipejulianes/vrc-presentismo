@@ -77,14 +77,15 @@ export default async function AttendanceDivisionPage({ params }: PageProps) {
     activityByDate[act.activity_date] = buildActivityInfo(act)
   }
 
-  // Sort descending (nearest first — upcoming at top, past below)
-  const sorted = [...sessions].sort((a, b) =>
-    a.session_date < b.session_date ? 1 : a.session_date > b.session_date ? -1 : 0
-  )
+  // Upcoming: ascending (la más próxima primero)
+  const upcoming = sessions
+    .filter(s => s.session_date >= today)
+    .sort((a, b) => a.session_date < b.session_date ? -1 : 1)
 
-  // Separate upcoming/today from past
-  const upcoming = sorted.filter(s => s.session_date >= today)
-  const past = sorted.filter(s => s.session_date < today)
+  // Past: descending (la más reciente primero)
+  const past = sessions
+    .filter(s => s.session_date < today)
+    .sort((a, b) => a.session_date < b.session_date ? 1 : -1)
 
   return (
     <div className="flex flex-col min-h-full">

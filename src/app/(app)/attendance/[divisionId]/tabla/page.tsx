@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 
 interface PageProps {
   params: { divisionId: string }
+  searchParams: Promise<{ tipo?: string }>
 }
 
 function fmtDate(dateStr: string): string {
@@ -12,17 +13,27 @@ function fmtDate(dateStr: string): string {
   return date.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'numeric' })
 }
 
-export default async function AttendanceTablaPage({ params }: PageProps) {
+export default async function AttendanceTablaPage({ params, searchParams }: PageProps) {
   const { divisionId } = params
+  const { tipo } = await searchParams
+  const sessionType = tipo === 'miercoles' ? 'miercoles' : tipo === 'todo' ? 'todo' : 'sabado'
+
   const supabase = await createClient()
+
+  let sessionsQuery = supabase
+    .from('training_sessions')
+    .select('id, session_date')
+    .eq('division_id', divisionId)
+    .lte('session_date', new Date().toISOString().split('T')[0])
+    .order('session_date', { ascending: true })
+
+  if (sessionType !== 'todo') {
+    sessionsQuery = sessionsQuery.eq('session_type', sessionType)
+  }
 
   const [{ data: division }, { data: sessionsRaw }, { data: playersRaw }] = await Promise.all([
     supabase.from('divisions').select('id, name').eq('id', divisionId).single(),
-    supabase
-      .from('training_sessions')
-      .select('id, session_date')
-      .eq('division_id', divisionId)
-      .order('session_date', { ascending: true }),
+    sessionsQuery,
     supabase
       .from('players')
       .select('id, first_name, last_name, inactivo')
@@ -102,6 +113,22 @@ export default async function AttendanceTablaPage({ params }: PageProps) {
         <div className="flex-1">
           <h1 className="text-xl font-bold text-gray-900">{division.name}</h1>
           <p className="text-sm text-gray-500">{players.length} jugadores · {sessions.length} entrenamientos</p>
+          {/* Tipo filter */}
+          <div className="flex bg-gray-100 rounded-lg p-0.5 gap-0.5 mt-1 w-fit">
+            {(['sabado', 'miercoles', 'todo'] as const).map(t => (
+              <Link
+                key={t}
+                href={`/attendance/${divisionId}/tabla${t !== 'sabado' ? `?tipo=${t}` : ''}`}
+                className={`px-2.5 py-1 text-xs font-medium rounded transition-all ${
+                  sessionType === t
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {t === 'sabado' ? 'Sáb' : t === 'miercoles' ? 'Miér' : 'Todo'}
+              </Link>
+            ))}
+          </div>
         </div>
         <a
           href={exportUrl}
