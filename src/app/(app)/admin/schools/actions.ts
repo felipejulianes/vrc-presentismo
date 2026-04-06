@@ -12,6 +12,7 @@ export async function createSchool(name: string): Promise<{ id: string; name: st
     .single()
   if (error) return null
   revalidatePath('/admin/schools')
+  revalidatePath('/tutoras/schools')
   return data
 }
 
@@ -30,6 +31,7 @@ export async function updateSchool(formData: FormData) {
     .eq('id', id)
 
   revalidatePath('/admin/schools')
+  revalidatePath('/tutoras/schools')
   return error ? { error: error.message } : { success: true }
 }
 
@@ -44,5 +46,6 @@ export async function mergeSchools(formData: FormData) {
   await supabase.from('schools').update({ active: false }).eq('id', sourceId)
 
   revalidatePath('/admin/schools')
+  revalidatePath('/tutoras/schools')
   return { success: true }
 }
