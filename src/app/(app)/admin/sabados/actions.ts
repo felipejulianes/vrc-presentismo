@@ -175,24 +175,51 @@ export async function updateClubCoordinator(
 
 export async function addVenue(clubId: string, name: string, address: string) {
   const supabase = await createClient()
-  // Auto-generate maps_url from address
   const maps_url = address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : null
   const { data, error } = await supabase
     .from('club_venues')
     .insert({ club_id: clubId, name, address: address || null, maps_url })
-    .select('id, club_id, name, address, maps_url, is_default')
+    .select('id, club_id, name, address, maps_url, lat, lng, is_default')
     .single()
   if (error) return { error: error.message, venue: null }
   revalidatePath('/admin/clubs')
   return { error: null, venue: data }
 }
 
-export async function updateVenue(venueId: string, name: string, address: string) {
+export async function updateVenue(
+  venueId: string,
+  name: string,
+  address: string,
+  coords?: { lat: number; lng: number; maps_url: string } | null
+) {
   const supabase = await createClient()
-  const maps_url = address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : null
+  const maps_url = coords?.maps_url ?? (address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : null)
   const { error } = await supabase
     .from('club_venues')
-    .update({ name, address: address || null, maps_url })
+    .update({
+      name,
+      address: address || null,
+      maps_url,
+      lat: coords?.lat ?? null,
+      lng: coords?.lng ?? null,
+    })
+    .eq('id', venueId)
+  if (error) return { error: error.message }
+  revalidatePath('/admin/clubs')
+  return { error: null }
+}
+
+/** Actualiza sólo coordenadas y maps_url — para el batch geocoding de sedes existentes */
+export async function updateVenueCoords(
+  venueId: string,
+  lat: number,
+  lng: number,
+  maps_url: string,
+) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('club_venues')
+    .update({ lat, lng, maps_url })
     .eq('id', venueId)
   if (error) return { error: error.message }
   revalidatePath('/admin/clubs')

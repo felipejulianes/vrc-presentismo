@@ -242,6 +242,8 @@ export type ClubVenue = {
   name: string
   address: string | null
   maps_url: string | null
+  lat: number | null
+  lng: number | null
   is_default: boolean
 }
 
@@ -262,7 +264,7 @@ export async function getClubWithVenues(clubId: string): Promise<OpponentClubFul
   if (!club) return null
   const { data: venues } = await supabase
     .from('club_venues')
-    .select('id, club_id, name, address, maps_url, is_default')
+    .select('id, club_id, name, address, maps_url, lat, lng, is_default')
     .eq('club_id', clubId)
     .order('is_default', { ascending: false })
   return { ...club, venues: venues ?? [] }
@@ -277,7 +279,7 @@ export async function getAllClubsFull(): Promise<OpponentClubFull[]> {
   if (!clubs) return []
   const { data: venues } = await supabase
     .from('club_venues')
-    .select('id, club_id, name, address, maps_url, is_default')
+    .select('id, club_id, name, address, maps_url, lat, lng, is_default')
   const venuesByClub: Record<string, ClubVenue[]> = {}
   for (const v of venues ?? []) {
     if (!venuesByClub[v.club_id]) venuesByClub[v.club_id] = []

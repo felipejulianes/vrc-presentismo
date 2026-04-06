@@ -1,9 +1,16 @@
 import Link from 'next/link'
 import { getAllClubsFull } from '@/lib/queries/sabados'
 import { ClubsManager } from '@/components/admin/ClubsManager'
+import { VenueGeocodingTool } from '@/components/admin/VenueGeocodingTool'
 
 export default async function ClubsPage() {
   const clubs = await getAllClubsFull()
+
+  // Flatten all venues with their club name for the geocoding tool
+  const allVenues = clubs.flatMap(c =>
+    c.venues.map(v => ({ ...v, club_name: c.name }))
+  )
+
   return (
     <div className="pb-8">
       <div className="px-4 pt-4 pb-3 flex items-center gap-2">
@@ -18,6 +25,7 @@ export default async function ClubsPage() {
         </div>
       </div>
       <div className="px-4">
+        <VenueGeocodingTool venues={allVenues} />
         <ClubsManager initialClubs={clubs} />
       </div>
     </div>

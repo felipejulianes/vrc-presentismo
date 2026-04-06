@@ -5,6 +5,7 @@ import {
   addOpponentClub, toggleClubActive,
   updateClubCoordinator, addVenue, updateVenue, deleteVenue,
 } from '@/app/(app)/admin/sabados/actions'
+import { AddressInput, type AddressValue } from '@/components/ui/AddressInput'
 import type { OpponentClubFull, ClubVenue } from '@/lib/queries/sabados'
 
 interface Props {
@@ -323,16 +324,29 @@ function ClubCard({ club, expanded, onToggleExpand, onUpdate, onToggleActive }: 
 function VenueRow({ venue, onUpdate, onDelete }: { venue: ClubVenue; onUpdate: (v: ClubVenue) => void; onDelete: () => void }) {
   const [editing, setEditing] = useState(!venue.name || venue.name === '')
   const [name, setName] = useState(venue.name)
-  const [address, setAddress] = useState(venue.address ?? '')
+  const [venueAddress, setVenueAddress] = useState<AddressValue | null>(
+    venue.address
+      ? { address: venue.address, lat: venue.lat ?? null, lng: venue.lng ?? null, maps_url: venue.maps_url ?? null }
+      : null
+  )
   const [isPending, startTransition] = useTransition()
 
   function handleSave() {
     if (!name.trim()) return
     startTransition(async () => {
-      const res = await updateVenue(venue.id, name.trim(), address.trim())
+      const coords = venueAddress?.lat != null
+        ? { lat: venueAddress.lat!, lng: venueAddress.lng!, maps_url: venueAddress.maps_url! }
+        : null
+      const res = await updateVenue(venue.id, name.trim(), venueAddress?.address ?? '', coords)
       if (!res.error) {
-        const mapsUrl = address.trim() ? `https://maps.google.com/?q=${encodeURIComponent(address.trim())}` : null
-        onUpdate({ ...venue, name: name.trim(), address: address.trim() || null, maps_url: mapsUrl })
+        onUpdate({
+          ...venue,
+          name: name.trim(),
+          address: venueAddress?.address ?? null,
+          lat: venueAddress?.lat ?? null,
+          lng: venueAddress?.lng ?? null,
+          maps_url: venueAddress?.maps_url ?? null,
+        })
         setEditing(false)
       }
     })
@@ -349,12 +363,11 @@ function VenueRow({ venue, onUpdate, onDelete }: { venue: ClubVenue; onUpdate: (
           className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-vrc-green"
           autoFocus
         />
-        <input
-          type="text"
-          value={address}
-          onChange={e => setAddress(e.target.value)}
-          placeholder="Dirección (ej: Av. Corrientes 1234, CABA)"
-          className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-vrc-green"
+        <AddressInput
+          value={venueAddress}
+          onChange={setVenueAddress}
+          placeholder="Buscar dirección de la sede..."
+          focusRingColor="focus:ring-vrc-green"
         />
         <div className="flex gap-2">
           <button onClick={handleSave} disabled={isPending || !name.trim()} className="px-2.5 py-1 bg-vrc-green text-white rounded-lg text-xs font-semibold disabled:opacity-50">
@@ -367,11 +380,17 @@ function VenueRow({ venue, onUpdate, onDelete }: { venue: ClubVenue; onUpdate: (
     )
   }
 
+  const hasCoords = venue.lat != null
   return (
     <div className="flex items-start gap-2 bg-gray-50 rounded-xl px-3 py-2">
       <div className="flex-1 min-w-0">
         <p className="text-xs font-semibold text-gray-700">{venue.name}</p>
-        {venue.address && <p className="text-xs text-gray-400 truncate">{venue.address}</p>}
+        {venue.address && (
+          <p className="text-xs text-gray-400 truncate">
+            {venue.address.split(',').slice(0, 2).join(',')}
+            {!hasCoords && <span className="ml-1 text-amber-500">⚠ sin coordenadas</span>}
+          </p>
+        )}
       </div>
       <div className="flex gap-1.5 flex-shrink-0">
         {venue.maps_url && (
