@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { getPlayerById, getDivisionsForUser } from '@/lib/queries/players'
 import { getStatsByYear } from '@/lib/queries/stats'
+import { getSchools } from '@/lib/queries/schools'
 import { formatWhatsAppNumber } from '@/lib/utils/whatsapp'
 import { createClient } from '@/lib/supabase/server'
 import { FollowupLog } from '@/components/players/FollowupLog'
@@ -55,7 +56,7 @@ export default async function PlayerDetailPage({ params }: PageProps) {
   const currentUserRole = (profileData?.role ?? 'coach') as 'admin' | 'tutora' | 'coach'
   const showInterviews = currentUserRole === 'admin' || currentUserRole === 'tutora'
 
-  const [statsData, { data: followupsData }, { data: notesData }, interviewsData] = await Promise.all([
+  const [statsData, { data: followupsData }, { data: notesData }, interviewsData, schools] = await Promise.all([
     getStatsByYear(player.division_id, currentYear).catch(() => []),
     supabase
       .from('player_followups')
@@ -68,6 +69,7 @@ export default async function PlayerDetailPage({ params }: PageProps) {
       .eq('player_id', params.playerId)
       .order('note_date', { ascending: false }),
     showInterviews ? getInterviewsForPlayer(params.playerId) : Promise.resolve([]),
+    showInterviews ? getSchools() : Promise.resolve([]),
   ])
 
   const stats = (statsData as Awaited<ReturnType<typeof getStatsByYear>>).find(s => s.player_id === player.id) ?? null
@@ -231,6 +233,7 @@ export default async function PlayerDetailPage({ params }: PageProps) {
           currentUserRole={currentUserRole}
           playerColegio={player.colegio}
           playerGrado={player.grado}
+          schools={schools}
         />
       )}
     </div>

@@ -69,13 +69,25 @@ export async function addInterview(playerId: string, formData: FormData) {
   const notas = (formData.get('notas') as string)?.trim()
   const interview_date = formData.get('interview_date') as string
   const grado = (formData.get('grado') as string)?.trim() || null
-  const colegio_snapshot = (formData.get('colegio_snapshot') as string)?.trim() || null
+  // Colegio: new_school_name if school changed, else current_colegio (auto-snapshot)
+  const new_school_id = (formData.get('new_school_id') as string)?.trim() || null
+  const new_school_name = (formData.get('new_school_name') as string)?.trim() || null
+  const current_colegio = (formData.get('current_colegio') as string)?.trim() || null
+  const colegio_snapshot = new_school_name || current_colegio || null
 
   if (!notas) return { error: 'Escribí las notas de la entrevista' }
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
+
+  // Si cambió de colegio, actualizar el jugador
+  if (new_school_id && new_school_name) {
+    await supabase.from('players').update({
+      school_id: new_school_id,
+      colegio: new_school_name,
+    }).eq('id', playerId)
+  }
 
   const { error } = await supabase.from('player_interviews').insert({
     player_id: playerId,

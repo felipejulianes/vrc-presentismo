@@ -3,23 +3,28 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { createInterviewFromTutoras, deleteInterviewFromTutoras } from '@/app/(app)/tutoras/actions'
+import { SchoolCombobox } from '@/components/players/SchoolCombobox'
 import type { AllInterviewRow } from '@/lib/queries/interviews'
 import type { Player } from '@/types'
+import type { School } from '@/lib/queries/schools'
 
 type PlayerWithDivision = Player & { division_name: string }
+type SchoolValue = { id: string; name: string }
 
 interface Props {
   interviews: AllInterviewRow[]
   players: PlayerWithDivision[]
+  schools: School[]
   currentUserId: string
 }
 
-export function TutorasInterviewsView({ interviews, players, currentUserId }: Props) {
+export function TutorasInterviewsView({ interviews, players, schools, currentUserId }: Props) {
   const [showModal, setShowModal] = useState(false)
   const [playerSearch, setPlayerSearch] = useState('')
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerWithDivision | null>(null)
   const [formGrado, setFormGrado] = useState('')
-  const [formColegio, setFormColegio] = useState('')
+  const [updateSchool, setUpdateSchool] = useState(false)
+  const [newSchool, setNewSchool] = useState<SchoolValue | null>(null)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
@@ -37,7 +42,8 @@ export function TutorasInterviewsView({ interviews, players, currentUserId }: Pr
     setPlayerSearch('')
     setSelectedPlayer(null)
     setFormGrado('')
-    setFormColegio('')
+    setUpdateSchool(false)
+    setNewSchool(null)
     setError(null)
   }
 
@@ -45,6 +51,8 @@ export function TutorasInterviewsView({ interviews, players, currentUserId }: Pr
     setShowModal(false)
     setSelectedPlayer(null)
     setPlayerSearch('')
+    setUpdateSchool(false)
+    setNewSchool(null)
     setError(null)
   }
 
@@ -52,7 +60,8 @@ export function TutorasInterviewsView({ interviews, players, currentUserId }: Pr
     setSelectedPlayer(p)
     setPlayerSearch(`${p.last_name}, ${p.first_name}`)
     setFormGrado(p.grado ?? '')
-    setFormColegio(p.colegio ?? '')
+    setUpdateSchool(false)
+    setNewSchool(null)
   }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -64,6 +73,13 @@ export function TutorasInterviewsView({ interviews, players, currentUserId }: Pr
     }
     const formData = new FormData(e.currentTarget)
     formData.set('player_id', selectedPlayer.id)
+    // Colegio actual para auto-snapshot
+    formData.set('current_colegio', selectedPlayer.colegio ?? '')
+    // Nuevo colegio si cambió
+    if (updateSchool && newSchool) {
+      formData.set('new_school_id', newSchool.id)
+      formData.set('new_school_name', newSchool.name)
+    }
     startTransition(async () => {
       const result = await createInterviewFromTutoras(formData)
       if (result?.error) {
@@ -108,7 +124,6 @@ export function TutorasInterviewsView({ interviews, players, currentUserId }: Pr
           {interviews.map(iv => (
             <div key={iv.id} className="px-5 py-4 flex items-start gap-4">
               <div className="flex-1 min-w-0">
-                {/* Jugador */}
                 <div className="flex items-center gap-2 flex-wrap mb-1">
                   <Link
                     href={`/players/${iv.player_id}`}
@@ -123,17 +138,14 @@ export function TutorasInterviewsView({ interviews, players, currentUserId }: Pr
                     </span>
                   )}
                 </div>
-                {/* Grado / colegio */}
                 {(iv.grado || iv.colegio_snapshot) && (
                   <p className="text-xs text-gray-400 mb-1">
                     {[iv.grado, iv.colegio_snapshot].filter(Boolean).join(' · ')}
                   </p>
                 )}
-                {/* Notas */}
                 <p className="text-sm text-gray-700 whitespace-pre-wrap">{iv.notas}</p>
               </div>
-              {/* Eliminar */}
-              {(iv.interviewer_id === currentUserId) && (
+              {iv.interviewer_id === currentUserId && (
                 <button
                   onClick={() => handleDelete(iv.id, iv.player_id)}
                   disabled={isPending}
@@ -187,7 +199,6 @@ export function TutorasInterviewsView({ interviews, players, currentUserId }: Pr
                     </span>
                   )}
                 </div>
-                {/* Dropdown */}
                 {playerSearch.trim().length > 0 && !selectedPlayer && (
                   <div className="mt-1 border border-gray-200 rounded-xl bg-white shadow-lg max-h-48 overflow-y-auto">
                     {filteredPlayers.length === 0 ? (
@@ -236,17 +247,50 @@ export function TutorasInterviewsView({ interviews, players, currentUserId }: Pr
                 />
               </div>
 
-              {/* Colegio (snapshot) */}
+              {/* Colegio — muestra el actual + opción de actualizar */}
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Colegio</label>
-                <input
-                  type="text"
-                  name="colegio_snapshot"
-                  value={formColegio}
-                  onChange={e => setFormColegio(e.target.value)}
-                  placeholder="Colegio al momento de la entrevista"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-medium text-gray-700">Colegio</label>
+                  {selectedPlayer && !updateSchool && (
+                    <button
+                      type="button"
+                      onClick={() => setUpdateSchool(true)}
+                      className="text-xs text-orange-600 hover:text-orange-700 font-medium"
+                    >
+                      Cambió de colegio →
+                    </button>
+                  )}
+                </div>
+
+                {!selectedPlayer ? (
+                  <div className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-400 italic">
+                    Seleccioná un jugador primero
+                  </div>
+                ) : !updateSchool ? (
+                  <div className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-700">
+                    {selectedPlayer.colegio ?? <span className="text-gray-400 italic">Sin colegio registrado</span>}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <SchoolCombobox
+                      schools={schools}
+                      value={newSchool}
+                      onChange={setNewSchool}
+                    />
+                    {newSchool && (
+                      <p className="text-xs text-orange-700 bg-orange-50 border border-orange-100 rounded-lg px-2.5 py-1.5">
+                        Se actualizará el colegio del jugador a <strong>{newSchool.name}</strong>
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => { setUpdateSchool(false); setNewSchool(null) }}
+                      className="text-xs text-gray-400 hover:text-gray-600"
+                    >
+                      ✕ Cancelar cambio de colegio
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Notas */}

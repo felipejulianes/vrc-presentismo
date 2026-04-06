@@ -108,12 +108,25 @@ export async function createInterviewFromTutoras(formData: FormData) {
   const player_id = formData.get('player_id') as string
   const interview_date = formData.get('interview_date') as string
   const grado = (formData.get('grado') as string)?.trim() || null
-  const colegio_snapshot = (formData.get('colegio_snapshot') as string)?.trim() || null
   const notas = (formData.get('notas') as string)?.trim() || ''
+  // Colegio: new_school_name if changed, else current_colegio (auto-snapshot)
+  const new_school_id = (formData.get('new_school_id') as string)?.trim() || null
+  const new_school_name = (formData.get('new_school_name') as string)?.trim() || null
+  const current_colegio = (formData.get('current_colegio') as string)?.trim() || null
+  const colegio_snapshot = new_school_name || current_colegio || null
 
   if (!player_id || !notas) return { error: 'Jugador y notas son obligatorios' }
 
   const supabase = await createClient()
+
+  // Si cambió de colegio, actualizar el jugador
+  if (new_school_id && new_school_name) {
+    await supabase.from('players').update({
+      school_id: new_school_id,
+      colegio: new_school_name,
+    }).eq('id', player_id)
+  }
+
   const { error } = await supabase.from('player_interviews').insert({
     player_id,
     interview_date: interview_date || new Date().toISOString().split('T')[0],
