@@ -30,8 +30,8 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // Rutas públicas (login)
-  const isPublic = pathname.startsWith('/login')
+  // Rutas públicas: login + callback de auth (reset password, OAuth)
+  const isPublic = pathname.startsWith('/login') || pathname.startsWith('/auth/')
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone()
