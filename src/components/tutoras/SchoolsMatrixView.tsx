@@ -22,6 +22,7 @@ export function SchoolsMatrixView({ matrix, visits, divisions, allSchools }: Pro
 
   const today = new Date().toISOString().split('T')[0]
   const upcomingVisits = visits.filter(v => v.status === 'planificada')
+  const realizadasVisits = visits.filter(v => v.status === 'realizada')
 
   const formatDate = (d: string) => {
     const [y, m, day] = d.split('-')
@@ -162,6 +163,30 @@ export function SchoolsMatrixView({ matrix, visits, divisions, allSchools }: Pro
                 </Link>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Visitas realizadas */}
+      {realizadasVisits.length > 0 && (
+        <div>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Visitas realizadas</h2>
+          <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+            {realizadasVisits.map(v => (
+              <Link
+                key={v.id}
+                href={`/tutoras/schools/${v.school_id}`}
+                className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">{v.school_name}</p>
+                  {v.notas && <p className="text-xs text-gray-400 truncate">{v.notas}</p>}
+                </div>
+                <span className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 bg-green-100 text-green-700">
+                  {formatDate(v.visit_date)}
+                </span>
+              </Link>
+            ))}
           </div>
         </div>
       )}

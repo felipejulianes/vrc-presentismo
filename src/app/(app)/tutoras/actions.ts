@@ -82,17 +82,60 @@ export async function toggleDoc(playerId: string, docType: string, currentlyRece
   return { success: true }
 }
 
-export async function updatePlayerGradoColegio(playerId: string, grado: string | null, colegio: string | null) {
+export async function updatePlayerGradoColegio(
+  playerId: string,
+  grado: string | null,
+  schoolId: string | null,
+  colegio: string | null,
+) {
   await assertTutoraOrAdmin()
 
   const supabase = await createClient()
   const { error } = await supabase
     .from('players')
-    .update({ grado, colegio })
+    .update({ grado, school_id: schoolId, colegio })
     .eq('id', playerId)
 
   if (error) return { error: error.message }
   revalidatePath('/tutoras/players')
+  revalidatePath(`/players/${playerId}`)
+  return { success: true }
+}
+
+export async function createInterviewFromTutoras(formData: FormData) {
+  const { user } = await assertTutoraOrAdmin()
+
+  const player_id = formData.get('player_id') as string
+  const interview_date = formData.get('interview_date') as string
+  const grado = (formData.get('grado') as string)?.trim() || null
+  const colegio_snapshot = (formData.get('colegio_snapshot') as string)?.trim() || null
+  const notas = (formData.get('notas') as string)?.trim() || ''
+
+  if (!player_id || !notas) return { error: 'Jugador y notas son obligatorios' }
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('player_interviews').insert({
+    player_id,
+    interview_date: interview_date || new Date().toISOString().split('T')[0],
+    interviewer_id: user.id,
+    grado,
+    colegio_snapshot,
+    notas,
+  })
+
+  if (error) return { error: error.message }
+  revalidatePath('/tutoras/interviews')
+  revalidatePath(`/players/${player_id}`)
+  return { success: true }
+}
+
+export async function deleteInterviewFromTutoras(interviewId: string, playerId: string) {
+  await assertTutoraOrAdmin()
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('player_interviews').delete().eq('id', interviewId)
+  if (error) return { error: error.message }
+  revalidatePath('/tutoras/interviews')
   revalidatePath(`/players/${playerId}`)
   return { success: true }
 }

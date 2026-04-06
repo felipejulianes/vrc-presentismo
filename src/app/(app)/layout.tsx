@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import Link from 'next/link'
 import { logout } from '@/app/(auth)/login/actions'
 import { createClient } from '@/lib/supabase/server'
 import { BottomNav } from '@/components/layout/BottomNav'
@@ -16,15 +17,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Top bar */}
       <header className="sticky top-0 z-40 bg-vrc-green text-white px-4 py-1.5 flex items-center justify-between shadow">
-        <Image
-          src="/isotipo.png"
-          alt="Virreyes Rugby Club"
-          width={200}
-          height={133}
-          className="brightness-0 invert"
-          style={{ height: '34px', width: 'auto' }}
-          priority
-        />
+        <Link href="/players">
+          <Image
+            src="/isotipo.png"
+            alt="Virreyes Rugby Club"
+            width={200}
+            height={133}
+            className="brightness-0 invert"
+            style={{ height: '34px', width: 'auto' }}
+            priority
+          />
+        </Link>
         <div className="flex items-center gap-3">
           <span className="text-sm text-green-100 hidden sm:block">{profile?.full_name}</span>
           <form action={logout}>

@@ -1,10 +1,12 @@
 import { getPlayersForUser, getDivisionsForUser } from '@/lib/queries/players'
+import { getSchools } from '@/lib/queries/schools'
 import { TutorasPlayersTable } from '@/components/tutoras/TutorasPlayersTable'
 
 export default async function TutorasPlayersPage() {
-  const [players, divisions] = await Promise.all([
+  const [players, divisions, schools] = await Promise.all([
     getPlayersForUser(),
     getDivisionsForUser(),
+    getSchools(),
   ])
 
   return (
@@ -14,7 +16,7 @@ export default async function TutorasPlayersPage() {
         <p className="text-sm text-gray-500 mt-1">{players.length} jugadores activos</p>
       </div>
 
-      <TutorasPlayersTable players={players} divisions={divisions} />
+      <TutorasPlayersTable players={players} divisions={divisions} schools={schools} />
     </div>
   )
 }

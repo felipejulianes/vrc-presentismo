@@ -24,7 +24,19 @@
       "Bash(echo \"Exit: $?\")",
       "Bash(powershell -Command \"Copy-Item ''C:\\\\Users\\\\felip\\\\Downloads\\\\spa.traineddata'' ''C:\\\\Program Files\\\\Tesseract-OCR\\\\tessdata\\\\spa.traineddata'' -Force\")",
       "Bash(ls \"C:\\\\Users\\\\felip\\\\OneDrive\\\\Documentos\\\\dev\\\\VRC\\\\App presentismo\\\\supabase\\\\migrations\"\" | grep -E \"01[3-6] \")",
-      "Bash(ls \"C:\\\\Users\\\\felip\\\\OneDrive\\\\Documentos\\\\dev\\\\VRC\\\\App presentismo\\\\src\\\\app\\\\\\(app\\)\\\\admin\\\\sabados\")"
+      "Bash(ls \"C:\\\\Users\\\\felip\\\\OneDrive\\\\Documentos\\\\dev\\\\VRC\\\\App presentismo\\\\src\\\\app\\\\\\(app\\)\\\\admin\\\\sabados\")",
+      "Bash(ls \"C:\\\\Users\\\\felip\\\\OneDrive\\\\Documentos\\\\dev\\\\VRC\\\\App presentismo\\\\src\\\\app\\\\\\(app\\)\\\\admin\"\")",
+      "Bash(ls '/c/Users/felip/OneDrive/Documentos/dev/VRC/App presentismo/src/app/\\(app\\)/admin/')",
+      "Bash(ls '/c/Users/felip/OneDrive/Documentos/dev/VRC/App presentismo/src/app/\\(app\\)/admin/buses/')",
+      "Bash(cat \"/c/Users/felip/OneDrive/Documentos/dev/VRC/App presentismo/src/app/\\(app\\)/admin/hoy/page.tsx\")",
+      "Bash(cat \"/c/Users/felip/OneDrive/Documentos/dev/VRC/App presentismo/src/app/\\(app\\)/admin/page.tsx\")",
+      "Bash(cat \"/c/Users/felip/OneDrive/Documentos/dev/VRC/App presentismo/src/app/\\(app\\)/admin/buses/actions.ts\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3333)",
+      "Bash(npx kill-port:*)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(find \"/c/Users/felip/OneDrive/Documentos/dev/VRC/App presentismo/src/app/\\(app\\)/admin\" -name \"page.tsx\")",
+      "Bash(ls \"/c/Users/felip/OneDrive/Documentos/dev/VRC/App presentismo/src/app/\\(app\\)/stats/\")",
+      "Bash(ls \"/c/Users/felip/OneDrive/Documentos/dev/VRC/App presentismo/src/app/\\(app\\)/attendance/[divisionId]/\")"
     ]
   }
 }

@@ -13,7 +13,9 @@ export default async function TutorasLayout({ children }: { children: React.Reac
     .eq('id', user.id)
     .single()
 
-  if (!['admin', 'tutora'].includes(profile?.role)) {
+  const role = profile?.role as 'admin' | 'tutora' | undefined
+
+  if (!['admin', 'tutora'].includes(role ?? '')) {
     redirect('/attendance')
   }
 
@@ -21,7 +23,7 @@ export default async function TutorasLayout({ children }: { children: React.Reac
     <div className="flex min-h-[calc(100vh-52px)]">
       {/* Sidebar — solo desktop (≥768px) */}
       <aside className="hidden md:flex flex-col w-56 bg-white border-r border-gray-200 flex-shrink-0">
-        <TutorasSidebar />
+        <TutorasSidebar role={role ?? 'tutora'} />
       </aside>
 
       {/* Contenido principal — pb-20 en mobile para el BottomNav del app layout */}

@@ -4,21 +4,26 @@ import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { updatePlayerGradoColegio } from '@/app/(app)/tutoras/actions'
+import { SchoolCombobox } from '@/components/players/SchoolCombobox'
 import type { Player, Division } from '@/types'
+import type { School } from '@/lib/queries/schools'
 
 type PlayerWithDivision = Player & { division_name: string }
 
 interface Props {
   players: PlayerWithDivision[]
   divisions: Division[]
+  schools: School[]
 }
 
-export function TutorasPlayersTable({ players, divisions }: Props) {
+type SchoolValue = { id: string; name: string }
+
+export function TutorasPlayersTable({ players, divisions, schools }: Props) {
   const [search, setSearch] = useState('')
   const [divisionFilter, setDivisionFilter] = useState<string>('todas')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editGrado, setEditGrado] = useState('')
-  const [editColegio, setEditColegio] = useState('')
+  const [editSchool, setEditSchool] = useState<SchoolValue | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const filtered = players.filter(p => {
@@ -34,7 +39,7 @@ export function TutorasPlayersTable({ players, divisions }: Props) {
   function startEdit(p: PlayerWithDivision) {
     setEditingId(p.id)
     setEditGrado(p.grado ?? '')
-    setEditColegio(p.colegio ?? '')
+    setEditSchool(p.school_id ? { id: p.school_id, name: p.colegio ?? '' } : null)
   }
 
   function cancelEdit() {
@@ -43,7 +48,12 @@ export function TutorasPlayersTable({ players, divisions }: Props) {
 
   function saveEdit(playerId: string) {
     startTransition(async () => {
-      await updatePlayerGradoColegio(playerId, editGrado.trim() || null, editColegio.trim() || null)
+      await updatePlayerGradoColegio(
+        playerId,
+        editGrado.trim() || null,
+        editSchool?.id ?? null,
+        editSchool?.name ?? null,
+      )
       setEditingId(null)
     })
   }
@@ -124,15 +134,13 @@ export function TutorasPlayersTable({ players, divisions }: Props) {
                   {/* División */}
                   <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{p.division_name}</td>
 
-                  {/* Colegio — editable */}
-                  <td className="px-4 py-2.5">
+                  {/* Colegio — editable con SchoolCombobox */}
+                  <td className="px-4 py-2.5 min-w-[200px]">
                     {isEditing ? (
-                      <input
-                        value={editColegio}
-                        onChange={e => setEditColegio(e.target.value)}
-                        className="w-full px-2 py-1 border border-orange-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
-                        placeholder="Colegio"
-                        autoFocus
+                      <SchoolCombobox
+                        schools={schools}
+                        value={editSchool}
+                        onChange={setEditSchool}
                       />
                     ) : (
                       <span className="text-gray-700">{p.colegio ?? <span className="text-gray-300">—</span>}</span>
