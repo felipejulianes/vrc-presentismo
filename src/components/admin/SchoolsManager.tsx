@@ -48,6 +48,7 @@ export function SchoolsManager({ schools: initialSchools }: Props) {
         setSchools(prev => [...prev, {
           id: created.id, name: created.name,
           aliases: newAliases.trim() || null, active: true, player_count: 0,
+          address: null, lat: null, lng: null, maps_url: null,
         }])
         setNewName('')
         setNewAliases('')

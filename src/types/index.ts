@@ -28,6 +28,10 @@ export type Player = {
   school_id: string | null
   como_conocio: string | null
   grado: string | null
+  address: string | null
+  lat: number | null
+  lng: number | null
+  maps_url: string | null
 }
 
 export type TrainingSession = {

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { CameraCapture } from './CameraCapture'
 import { SchoolCombobox } from './SchoolCombobox'
+import { AddressInput, type AddressValue } from '@/components/ui/AddressInput'
 import type { Player, Division } from '@/types'
 import type { School } from '@/lib/queries/schools'
 
@@ -40,6 +41,13 @@ export function PlayerForm({ divisions, player, defaultDivisionId, schools }: Pl
   // School combobox state (separate from form to handle id+name pair)
   const [school, setSchool] = useState<{ id: string; name: string } | null>(
     player?.school_id ? { id: player.school_id, name: player.colegio ?? '' } : null
+  )
+
+  // Address
+  const [address, setAddress] = useState<AddressValue | null>(
+    player?.address
+      ? { address: player.address, lat: player.lat ?? null, lng: player.lng ?? null, maps_url: player.maps_url ?? null }
+      : null
   )
 
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null)
@@ -82,6 +90,10 @@ export function PlayerForm({ divisions, player, defaultDivisionId, schools }: Pl
         school_id: school?.id ?? null,
         como_conocio: form.como_conocio || null,
         inactivo: form.inactivo,
+        address: address?.address ?? null,
+        lat: address?.lat ?? null,
+        lng: address?.lng ?? null,
+        maps_url: address?.maps_url ?? null,
       }
 
       if (isEdit) {
@@ -310,6 +322,17 @@ export function PlayerForm({ divisions, player, defaultDivisionId, schools }: Pl
           <option value="visita_colegio">Visita del club al colegio</option>
           <option value="otro">Otro</option>
         </select>
+      </div>
+
+      {/* Dirección */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+        <AddressInput
+          value={address}
+          onChange={setAddress}
+          placeholder="Ej: Corrientes 1234, Buenos Aires"
+        />
+        <p className="text-xs text-gray-400 mt-1">Buscá y seleccioná para obtener el pin exacto en Maps.</p>
       </div>
 
       {/* Inactivo toggle */}

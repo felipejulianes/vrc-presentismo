@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { createSchoolVisit } from '@/app/(app)/tutoras/actions'
 import { updateSchool, mergeSchools, createSchool } from '@/app/(app)/admin/schools/actions'
+import { AddressInput, type AddressValue } from '@/components/ui/AddressInput'
 import type { SchoolMatrixRow } from '@/lib/queries/schoolVisits'
 import type { SchoolWithCount } from '@/lib/queries/schools'
 import type { SchoolVisit } from '@/types'
@@ -390,6 +391,7 @@ function CatalogoTab({ schools: initialSchools }: CatalogoProps) {
         setSchools(prev => [...prev, {
           id: created.id, name: created.name,
           aliases: newAliases.trim() || null, active: true, player_count: 0,
+          address: null, lat: null, lng: null, maps_url: null,
         }])
         setNewName('')
         setNewAliases('')
@@ -523,6 +525,11 @@ function SchoolCatalogRow({
   const [name, setName] = useState(school.name)
   const [aliases, setAliases] = useState(school.aliases ?? '')
   const [mergeTarget, setMergeTarget] = useState('')
+  const [schoolAddress, setSchoolAddress] = useState<AddressValue | null>(
+    school.address
+      ? { address: school.address, lat: school.lat ?? null, lng: school.lng ?? null, maps_url: school.maps_url ?? null }
+      : null
+  )
 
   if (merging) {
     const others = allSchools.filter(s => s.id !== school.id)
@@ -583,6 +590,15 @@ function SchoolCatalogRow({
           className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
         />
         <p className="text-xs text-gray-400">Los aliases se usan para buscar el colegio por nombres alternativos.</p>
+        <div>
+          <p className="text-xs font-medium text-gray-600 mb-1">Dirección del colegio</p>
+          <AddressInput
+            value={schoolAddress}
+            onChange={setSchoolAddress}
+            placeholder="Buscar dirección del colegio..."
+            focusRingColor="focus:ring-blue-400"
+          />
+        </div>
         <div className="flex gap-2">
           <button
             disabled={!name.trim() || isPending}
@@ -591,6 +607,12 @@ function SchoolCatalogRow({
               fd.append('id', school.id)
               fd.append('name', name)
               fd.append('aliases', aliases)
+              if (schoolAddress) {
+                fd.append('address', schoolAddress.address)
+                if (schoolAddress.lat != null) fd.append('lat', String(schoolAddress.lat))
+                if (schoolAddress.lng != null) fd.append('lng', String(schoolAddress.lng))
+                if (schoolAddress.maps_url) fd.append('maps_url', schoolAddress.maps_url)
+              }
               onSave(fd)
             }}
             className="flex-1 py-1.5 bg-vrc-green text-white rounded-lg text-sm font-semibold disabled:opacity-40"
@@ -611,6 +633,20 @@ function SchoolCatalogRow({
         <p className="text-sm font-medium text-gray-900">{school.name}</p>
         {school.aliases && (
           <p className="text-xs text-gray-400 truncate">{school.aliases}</p>
+        )}
+        {school.address && (
+          <div className="flex items-center gap-1 mt-0.5">
+            <svg className="w-3 h-3 text-gray-400 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+            </svg>
+            {school.maps_url ? (
+              <a href={school.maps_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline truncate">
+                {school.address.split(',').slice(0, 2).join(',')}
+              </a>
+            ) : (
+              <span className="text-xs text-gray-400 truncate">{school.address.split(',').slice(0, 2).join(',')}</span>
+            )}
+          </div>
         )}
       </div>
       <span className={`text-sm font-bold flex-shrink-0 ${school.player_count > 0 ? 'text-green-700' : 'text-gray-300'}`}>

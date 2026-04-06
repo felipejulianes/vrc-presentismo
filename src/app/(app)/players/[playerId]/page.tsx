@@ -210,6 +210,31 @@ export default async function PlayerDetailPage({ params }: PageProps) {
         </div>
       </div>
 
+      {/* Dirección */}
+      {player.maps_url && (
+        <div className="px-4 pb-4">
+          <h2 className="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-wide">Dirección</h2>
+          <div className="bg-white rounded-2xl border border-gray-200">
+            <a
+              href={player.maps_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50"
+            >
+              <svg className="w-5 h-5 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+              </svg>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-gray-800 leading-snug">{player.address}</p>
+              </div>
+              <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* Seguimiento de ausentes */}
       <FollowupLog
         playerId={params.playerId}

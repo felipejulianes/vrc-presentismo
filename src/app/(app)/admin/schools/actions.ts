@@ -21,13 +21,23 @@ export async function updateSchool(formData: FormData) {
   const name = (formData.get('name') as string)?.trim()
   const aliases = (formData.get('aliases') as string)?.trim() || null
   const active = formData.get('active') !== 'false'
+  const address = (formData.get('address') as string)?.trim() || null
+  const latRaw = formData.get('lat')
+  const lngRaw = formData.get('lng')
+  const maps_url = (formData.get('maps_url') as string)?.trim() || null
 
   if (!id || !name) return { error: 'Faltan datos' }
 
   const supabase = await createClient()
   const { error } = await supabase
     .from('schools')
-    .update({ name, aliases, active })
+    .update({
+      name, aliases, active,
+      address,
+      lat: latRaw ? parseFloat(latRaw as string) : null,
+      lng: lngRaw ? parseFloat(lngRaw as string) : null,
+      maps_url,
+    })
     .eq('id', id)
 
   revalidatePath('/admin/schools')
