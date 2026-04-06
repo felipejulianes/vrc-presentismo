@@ -15,7 +15,7 @@ interface Props {
   divisions: { id: string; name: string; sort_order: number }[]
 }
 
-export function SchoolDetailView({ schoolId, schoolName, players, visits, divisions }: Props) {
+export function SchoolDetailView({ schoolId, players, visits, divisions }: Props) {
   const [isPending, startTransition] = useTransition()
 
   const today = new Date().toISOString().split('T')[0]
@@ -34,10 +34,9 @@ export function SchoolDetailView({ schoolId, schoolName, players, visits, divisi
     return `${day}/${m}/${y}`
   }
 
-  const buildWaUrl = (phone: string, playerName: string) => {
+  const buildWaUrl = (phone: string) => {
     const num = formatWhatsAppNumber(phone)
-    const msg = encodeURIComponent(`Hola, le escribimos del Club Virreyes Rugby. Queríamos avisarle que vamos a visitar el ${schoolName} y ${playerName} puede participar.`)
-    return `https://wa.me/${num}?text=${msg}`
+    return `https://wa.me/${num}`
   }
 
   const statusLabel = (status: string) => {
@@ -90,7 +89,7 @@ export function SchoolDetailView({ schoolId, schoolName, players, visits, divisi
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {p.parent_phone && (
                         <a
-                          href={buildWaUrl(p.parent_phone, p.first_name)}
+                          href={buildWaUrl(p.parent_phone)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"

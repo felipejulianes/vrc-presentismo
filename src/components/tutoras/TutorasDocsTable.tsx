@@ -36,10 +36,9 @@ export function TutorasDocsTable({ players, divisions }: Props) {
     })
   }
 
-  const buildWaUrl = (phone: string, name: string) => {
+  const buildWaUrl = (phone: string) => {
     const num = formatWhatsAppNumber(phone)
-    const msg = encodeURIComponent(`Hola, le escribimos del Club Virreyes Rugby. Queríamos recordarle que ${name} tiene documentación pendiente de entregar.`)
-    return `https://wa.me/${num}?text=${msg}`
+    return `https://wa.me/${num}`
   }
 
   return (
@@ -141,7 +140,7 @@ export function TutorasDocsTable({ players, divisions }: Props) {
                   <td className="px-3 py-2.5 text-center">
                     {p.parent_phone ? (
                       <a
-                        href={buildWaUrl(p.parent_phone, p.first_name)}
+                        href={buildWaUrl(p.parent_phone)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center justify-center w-7 h-7 text-green-600 hover:bg-green-50 rounded-lg transition-colors"

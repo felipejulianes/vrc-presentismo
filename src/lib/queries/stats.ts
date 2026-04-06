@@ -27,40 +27,39 @@ function mapStat(r: PlayerStat): PlayerStat {
   }
 }
 
-export async function getStatsByDays(divisionId: string, days = 60): Promise<PlayerStat[]> {
+export async function getStatsByDays(divisionId: string, days = 30, sessionType?: SessionType): Promise<PlayerStat[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase.rpc('get_attendance_stats_days', {
-    p_division_id: divisionId,
-    p_days: days,
-  })
+  const params: Record<string, unknown> = { p_division_id: divisionId, p_days: days }
+  if (sessionType && sessionType !== 'todo') params.p_session_type = sessionType
+  const { data, error } = await supabase.rpc('get_attendance_stats_days', params)
   if (error) throw error
   return (data ?? []).map(mapStat)
 }
 
-export async function getStatsBySessions(divisionId: string, sessions = 10): Promise<PlayerStat[]> {
+export async function getStatsBySessions(divisionId: string, sessions = 10, sessionType?: SessionType): Promise<PlayerStat[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase.rpc('get_attendance_stats_sessions', {
-    p_division_id: divisionId,
-    p_sessions: sessions,
-  })
+  const params: Record<string, unknown> = { p_division_id: divisionId, p_sessions: sessions }
+  if (sessionType && sessionType !== 'todo') params.p_session_type = sessionType
+  const { data, error } = await supabase.rpc('get_attendance_stats_sessions', params)
   if (error) throw error
   return (data ?? []).map(mapStat)
 }
 
-export async function getStatsByYear(divisionId: string, year?: number): Promise<PlayerStat[]> {
+export async function getStatsByYear(divisionId: string, year?: number, sessionType?: SessionType): Promise<PlayerStat[]> {
   const supabase = await createClient()
   const params: Record<string, unknown> = { p_division_id: divisionId }
   if (year !== undefined) params.p_year = year
+  if (sessionType && sessionType !== 'todo') params.p_session_type = sessionType
   const { data, error } = await supabase.rpc('get_attendance_stats_year', params)
   if (error) throw error
   return (data ?? []).map(mapStat)
 }
 
-export async function getStatsSinceAlta(divisionId: string): Promise<PlayerStat[]> {
+export async function getStatsSinceAlta(divisionId: string, sessionType?: SessionType): Promise<PlayerStat[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase.rpc('get_attendance_stats_since_alta', {
-    p_division_id: divisionId,
-  })
+  const params: Record<string, unknown> = { p_division_id: divisionId }
+  if (sessionType && sessionType !== 'todo') params.p_session_type = sessionType
+  const { data, error } = await supabase.rpc('get_attendance_stats_since_alta', params)
   if (error) throw error
   return (data ?? []).map(mapStat)
 }
@@ -128,16 +127,19 @@ export async function getSessionTrend(divisionId: string, limit = 50, sessionTyp
 export type DivisionKpis = {
   totalActive: number
   came30d: number
+  avgPerSession: number
 }
 
 export async function getDivisionKpis(divisionId: string, sessionType?: SessionType): Promise<DivisionKpis> {
   const supabase = await createClient()
+  const today = new Date().toISOString().split('T')[0]
 
   let sessionsQuery = supabase
     .from('training_sessions')
     .select('id')
     .eq('division_id', divisionId)
     .gte('session_date', daysAgoISO(30))
+    .lte('session_date', today)
 
   if (sessionType && sessionType !== 'todo') {
     sessionsQuery = sessionsQuery.eq('session_type', sessionType)
@@ -154,18 +156,31 @@ export async function getDivisionKpis(divisionId: string, sessionType?: SessionT
   ])
 
   let came30d = 0
+  let avgPerSession = 0
+
   if (recentResult.data && recentResult.data.length > 0) {
     const sessionIds = recentResult.data.map((s: { id: string }) => s.id)
     const { data: records } = await supabase
       .from('attendance_records')
-      .select('player_id')
+      .select('session_id, player_id')
       .in('session_id', sessionIds)
       .eq('present', true)
+
     const unique = new Set((records ?? []).map((r: { player_id: string }) => r.player_id))
     came30d = unique.size
+
+    // Avg present per session
+    const countBySess: Record<string, number> = {}
+    for (const r of records ?? []) {
+      countBySess[(r as { session_id: string }).session_id] = (countBySess[(r as { session_id: string }).session_id] ?? 0) + 1
+    }
+    const counts = Object.values(countBySess)
+    avgPerSession = counts.length > 0
+      ? Math.round(counts.reduce((sum, n) => sum + n, 0) / counts.length)
+      : 0
   }
 
-  return { totalActive: totalActive ?? 0, came30d }
+  return { totalActive: totalActive ?? 0, came30d, avgPerSession }
 }
 
 // ── Admin stats ─────────────────────────────────────────────

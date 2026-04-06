@@ -76,7 +76,7 @@ export default async function PlayerDetailPage({ params }: PageProps) {
   const currentUserId = user?.id ?? ''
 
   const waUrl = player.parent_phone
-    ? `https://wa.me/${formatWhatsAppNumber(player.parent_phone)}?text=${encodeURIComponent(`Hola, soy el entrenador de ${player.first_name}`)}`
+    ? `https://wa.me/${formatWhatsAppNumber(player.parent_phone)}`
     : null
   const telUrl = player.parent_phone ? `tel:${player.parent_phone}` : null
 

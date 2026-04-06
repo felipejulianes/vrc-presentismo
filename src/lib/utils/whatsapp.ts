@@ -24,10 +24,8 @@ export function formatWhatsAppNumber(phone: string): string {
   return `549${digits}`
 }
 
-export function buildWhatsAppUrl(phone: string, playerName: string): string {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function buildWhatsAppUrl(phone: string, _playerName?: string): string {
   const number = formatWhatsAppNumber(phone)
-  const message = encodeURIComponent(
-    `Hola! Te escribimos desde Virreyes Rugby Club sobre la asistencia de ${playerName}. ¿Podemos hablar?`
-  )
-  return `https://wa.me/${number}?text=${message}`
+  return `https://wa.me/${number}`
 }

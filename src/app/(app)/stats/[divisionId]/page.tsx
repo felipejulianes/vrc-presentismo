@@ -6,15 +6,21 @@ import {
   getStatsSinceAlta,
   getSessionTrend,
   getDivisionKpis,
+  type SessionType,
 } from '@/lib/queries/stats'
 import { StatsView } from '@/components/stats/StatsView'
 
 interface PageProps {
   params: { divisionId: string }
+  searchParams: { type?: string }
 }
 
-export default async function StatsDivisionPage({ params }: PageProps) {
+export default async function StatsDivisionPage({ params, searchParams }: PageProps) {
   const { divisionId } = params
+  const rawType = searchParams.type
+  const sessionType: SessionType =
+    rawType === 'sabado' || rawType === 'miercoles' ? rawType : 'todo'
+
   const supabase = await createClient()
 
   const { data: division } = await supabase
@@ -28,16 +34,18 @@ export default async function StatsDivisionPage({ params }: PageProps) {
   const currentYear = new Date().getFullYear()
 
   const [kpis, statsByYear, statsByDays, statsSinceAlta, sessionTrend] = await Promise.all([
-    getDivisionKpis(divisionId),
-    getStatsByYear(divisionId, currentYear),
-    getStatsByDays(divisionId, 60),
-    getStatsSinceAlta(divisionId),
-    getSessionTrend(divisionId, 50),
+    getDivisionKpis(divisionId, sessionType),
+    getStatsByYear(divisionId, currentYear, sessionType),
+    getStatsByDays(divisionId, 30, sessionType),
+    getStatsSinceAlta(divisionId, sessionType),
+    getSessionTrend(divisionId, 50, sessionType),
   ])
 
   return (
     <StatsView
+      divisionId={divisionId}
       divisionName={division.name}
+      sessionType={sessionType}
       kpis={kpis}
       statsByYear={statsByYear}
       statsByDays={statsByDays}
