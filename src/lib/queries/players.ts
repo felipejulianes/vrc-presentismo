@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import type { Player, Division } from '@/types'
 
-const PLAYER_FIELDS = 'id, first_name, last_name, dni, birth_date, photo_url, division_id, active, inactivo, parent_name, parent_phone, parent_name_2, parent_phone_2, sobrenombre, fecha_alta, colegio, school_id, como_conocio'
+const PLAYER_FIELDS = 'id, first_name, last_name, dni, birth_date, photo_url, division_id, active, inactivo, parent_name, parent_phone, parent_name_2, parent_phone_2, sobrenombre, fecha_alta, colegio, school_id, como_conocio, grado'
+
+const FULL_ACCESS_ROLES = ['admin', 'tutora']
 
 export async function getPlayersByDivision(divisionId: string): Promise<Player[]> {
   const supabase = await createClient()
@@ -37,7 +39,7 @@ export async function getPlayersForUser(): Promise<(Player & { division_name: st
     .order('last_name')
     .order('first_name')
 
-  if (profile?.role !== 'admin') {
+  if (!FULL_ACCESS_ROLES.includes(profile?.role)) {
     const { data: cd } = await supabase
       .from('coach_divisions')
       .select('division_id')
@@ -80,7 +82,7 @@ export async function getDivisionsForUser(): Promise<Division[]> {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role === 'admin') {
+  if (FULL_ACCESS_ROLES.includes(profile?.role)) {
     const { data, error } = await supabase
       .from('divisions')
       .select('*')

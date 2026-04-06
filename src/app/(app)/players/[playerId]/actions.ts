@@ -64,3 +64,37 @@ export async function deleteNote(playerId: string, noteId: string) {
   revalidatePath(`/players/${playerId}`)
   return { success: true }
 }
+
+export async function addInterview(playerId: string, formData: FormData) {
+  const notas = (formData.get('notas') as string)?.trim()
+  const interview_date = formData.get('interview_date') as string
+  const grado = (formData.get('grado') as string)?.trim() || null
+  const colegio_snapshot = (formData.get('colegio_snapshot') as string)?.trim() || null
+
+  if (!notas) return { error: 'Escribí las notas de la entrevista' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { error } = await supabase.from('player_interviews').insert({
+    player_id: playerId,
+    notas,
+    interview_date: interview_date || new Date().toISOString().split('T')[0],
+    grado,
+    colegio_snapshot,
+    interviewer_id: user.id,
+  })
+
+  if (error) return { error: error.message }
+  revalidatePath(`/players/${playerId}`)
+  return { success: true }
+}
+
+export async function deleteInterview(playerId: string, interviewId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase.from('player_interviews').delete().eq('id', interviewId)
+  if (error) return { error: error.message }
+  revalidatePath(`/players/${playerId}`)
+  return { success: true }
+}

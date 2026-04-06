@@ -27,6 +27,7 @@ export type Player = {
   colegio: string | null
   school_id: string | null
   como_conocio: string | null
+  grado: string | null
 }
 
 export type TrainingSession = {
@@ -45,8 +46,32 @@ export type AttendanceRecord = {
 
 export type Profile = {
   id: string
-  role: 'admin' | 'coach'
+  role: 'admin' | 'coach' | 'tutora'
   full_name: string
+}
+
+export type PlayerInterview = {
+  id: string
+  player_id: string
+  interview_date: string
+  interviewer_id: string | null
+  interviewer_name: string | null
+  grado: string | null
+  colegio_snapshot: string | null
+  notas: string
+  created_at: string
+}
+
+export type SchoolVisit = {
+  id: string
+  school_id: string
+  school_name?: string
+  visit_date: string
+  status: 'planificada' | 'realizada' | 'cancelada'
+  division_ids: string[]
+  notas: string | null
+  created_by: string | null
+  created_at: string
 }
 
 // Estado de asistencia local: playerId → presente

@@ -73,6 +73,7 @@ export function CreateCoachForm() {
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
         >
           <option value="coach">Entrenador</option>
+          <option value="tutora">Tutora</option>
           <option value="admin">Administrador</option>
         </select>
       </div>

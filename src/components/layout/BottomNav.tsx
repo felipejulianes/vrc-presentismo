@@ -9,6 +9,8 @@ interface NavItem {
   icon: (props: { className?: string }) => React.ReactElement
   // rutas adicionales que activan este tab
   activeFor?: string[]
+  // match exacto en lugar de startsWith
+  exact?: boolean
 }
 
 // "Más" agrupa: /more, /clubs, /wiki, /docs
@@ -31,19 +33,36 @@ const adminNavItems: NavItem[] = [
   { href: '/admin', label: 'Coordinación', icon: StarIcon },
 ]
 
+// Tutora: Dashboard · Docs · Jugadores · Colegios  (4 tabs — mobile)
+const tutoraNavItems: NavItem[] = [
+  { href: '/tutoras', label: 'Inicio', icon: HomeIcon, exact: true },
+  { href: '/tutoras/docs', label: 'Docs', icon: DocumentIcon },
+  { href: '/tutoras/players', label: 'Jugadores', icon: UsersIcon },
+  { href: '/tutoras/schools', label: 'Colegios', icon: SchoolIcon },
+]
+
 interface Props {
   isAdmin?: boolean
+  isTutora?: boolean
 }
 
-export function BottomNav({ isAdmin }: Props) {
+export function BottomNav({ isAdmin, isTutora }: Props) {
   const pathname = usePathname()
-  const navItems = isAdmin ? adminNavItems : coachNavItems
+  // Si estamos en /tutoras/*, usar nav de tutora en mobile
+  const inTutoraSection = pathname.startsWith('/tutoras')
+  const navItems = ((isTutora || isAdmin) && inTutoraSection)
+    ? tutoraNavItems
+    : isAdmin
+    ? adminNavItems
+    : coachNavItems
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-200 flex">
-      {navItems.map(({ href, label, icon: Icon, activeFor }) => {
+      {navItems.map(({ href, label, icon: Icon, activeFor, exact }) => {
         const active = activeFor
           ? activeFor.some(r => pathname.startsWith(r))
+          : exact
+          ? pathname === href
           : pathname.startsWith(href)
         return (
           <Link
@@ -90,6 +109,30 @@ function GridIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+    </svg>
+  )
+}
+
+function HomeIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+    </svg>
+  )
+}
+
+function DocumentIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
+    </svg>
+  )
+}
+
+function SchoolIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.438 60.438 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
     </svg>
   )
 }

@@ -40,7 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {children}
       </main>
 
-      <BottomNav isAdmin={profile?.role === 'admin'} />
+      <BottomNav isAdmin={profile?.role === 'admin'} isTutora={profile?.role === 'tutora'} />
     </div>
   )
 }

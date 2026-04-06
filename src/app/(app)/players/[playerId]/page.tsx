@@ -7,6 +7,8 @@ import { formatWhatsAppNumber } from '@/lib/utils/whatsapp'
 import { createClient } from '@/lib/supabase/server'
 import { FollowupLog } from '@/components/players/FollowupLog'
 import { PlayerNotes } from '@/components/players/PlayerNotes'
+import { PlayerInterviews } from '@/components/players/PlayerInterviews'
+import { getInterviewsForPlayer } from '@/lib/queries/interviews'
 
 interface PageProps {
   params: { playerId: string }
@@ -34,18 +36,26 @@ function AttendanceBar({ pct }: { pct: number | null }) {
 export default async function PlayerDetailPage({ params }: PageProps) {
   const supabase = await createClient()
 
-  const [player, divisions, { data: { user } }] = await Promise.all([
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profileData } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user?.id ?? '')
+    .single()
+
+  const [player, divisions] = await Promise.all([
     getPlayerById(params.playerId),
     getDivisionsForUser(),
-    supabase.auth.getUser(),
   ])
 
   if (!player) notFound()
 
   const division = divisions.find(d => d.id === player.division_id)
   const currentYear = new Date().getFullYear()
+  const currentUserRole = (profileData?.role ?? 'coach') as 'admin' | 'tutora' | 'coach'
+  const showInterviews = currentUserRole === 'admin' || currentUserRole === 'tutora'
 
-  const [statsData, { data: followupsData }, { data: notesData }] = await Promise.all([
+  const [statsData, { data: followupsData }, { data: notesData }, interviewsData] = await Promise.all([
     getStatsByYear(player.division_id, currentYear).catch(() => []),
     supabase
       .from('player_followups')
@@ -57,16 +67,16 @@ export default async function PlayerDetailPage({ params }: PageProps) {
       .select('id, note_date, content, created_by')
       .eq('player_id', params.playerId)
       .order('note_date', { ascending: false }),
+    showInterviews ? getInterviewsForPlayer(params.playerId) : Promise.resolve([]),
   ])
 
   const stats = (statsData as Awaited<ReturnType<typeof getStatsByYear>>).find(s => s.player_id === player.id) ?? null
+  const currentUserId = user?.id ?? ''
 
   const waUrl = player.parent_phone
     ? `https://wa.me/${formatWhatsAppNumber(player.parent_phone)}?text=${encodeURIComponent(`Hola, soy el entrenador de ${player.first_name}`)}`
     : null
   const telUrl = player.parent_phone ? `tel:${player.parent_phone}` : null
-
-  const currentUserId = user?.id ?? ''
 
   return (
     <div className="pb-6">
@@ -211,6 +221,18 @@ export default async function PlayerDetailPage({ params }: PageProps) {
         notes={notesData ?? []}
         currentUserId={currentUserId}
       />
+
+      {/* Entrevistas — solo tutoras y admins */}
+      {showInterviews && (
+        <PlayerInterviews
+          playerId={params.playerId}
+          interviews={interviewsData}
+          currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
+          playerColegio={player.colegio}
+          playerGrado={player.grado}
+        />
+      )}
     </div>
   )
 }

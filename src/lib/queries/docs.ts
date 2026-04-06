@@ -36,7 +36,7 @@ export async function getDocsStatusForUser(): Promise<PlayerDocStatus[]> {
     .order('last_name')
     .order('first_name')
 
-  if (profile?.role !== 'admin') {
+  if (!['admin', 'tutora'].includes(profile?.role)) {
     const { data: cd } = await supabase
       .from('coach_divisions')
       .select('division_id')
