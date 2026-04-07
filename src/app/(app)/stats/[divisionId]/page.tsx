@@ -19,7 +19,7 @@ export default async function StatsDivisionPage({ params, searchParams }: PagePr
   const { divisionId } = params
   const { type: rawType } = await searchParams
   const sessionType: SessionType =
-    rawType === 'sabado' || rawType === 'miercoles' ? rawType : 'todo'
+    rawType === 'miercoles' || rawType === 'todo' ? rawType : 'sabado'
 
   const supabase = await createClient()
 
