@@ -12,12 +12,12 @@ import { StatsView } from '@/components/stats/StatsView'
 
 interface PageProps {
   params: { divisionId: string }
-  searchParams: { type?: string }
+  searchParams: Promise<{ type?: string }>
 }
 
 export default async function StatsDivisionPage({ params, searchParams }: PageProps) {
   const { divisionId } = params
-  const rawType = searchParams.type
+  const { type: rawType } = await searchParams
   const sessionType: SessionType =
     rawType === 'sabado' || rawType === 'miercoles' ? rawType : 'todo'
 

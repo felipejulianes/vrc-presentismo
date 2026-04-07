@@ -32,7 +32,7 @@ export async function getStatsByDays(divisionId: string, days = 30, sessionType?
   const params: Record<string, unknown> = { p_division_id: divisionId, p_days: days }
   if (sessionType && sessionType !== 'todo') params.p_session_type = sessionType
   const { data, error } = await supabase.rpc('get_attendance_stats_days', params)
-  if (error) throw error
+  if (error) return []
   return (data ?? []).map(mapStat)
 }
 
@@ -41,7 +41,7 @@ export async function getStatsBySessions(divisionId: string, sessions = 10, sess
   const params: Record<string, unknown> = { p_division_id: divisionId, p_sessions: sessions }
   if (sessionType && sessionType !== 'todo') params.p_session_type = sessionType
   const { data, error } = await supabase.rpc('get_attendance_stats_sessions', params)
-  if (error) throw error
+  if (error) return []
   return (data ?? []).map(mapStat)
 }
 
@@ -51,7 +51,7 @@ export async function getStatsByYear(divisionId: string, year?: number, sessionT
   if (year !== undefined) params.p_year = year
   if (sessionType && sessionType !== 'todo') params.p_session_type = sessionType
   const { data, error } = await supabase.rpc('get_attendance_stats_year', params)
-  if (error) throw error
+  if (error) return []
   return (data ?? []).map(mapStat)
 }
 
@@ -60,7 +60,7 @@ export async function getStatsSinceAlta(divisionId: string, sessionType?: Sessio
   const params: Record<string, unknown> = { p_division_id: divisionId }
   if (sessionType && sessionType !== 'todo') params.p_session_type = sessionType
   const { data, error } = await supabase.rpc('get_attendance_stats_since_alta', params)
-  if (error) throw error
+  if (error) return []
   return (data ?? []).map(mapStat)
 }
 
