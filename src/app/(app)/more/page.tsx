@@ -10,6 +10,20 @@ export default function MorePage() {
 
       <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
         <Link
+          href="/ayuda"
+          className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 active:bg-gray-100"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-xl">📖</span>
+            <div>
+              <p className="text-sm font-medium text-gray-900">Guía de uso</p>
+              <p className="text-xs text-gray-400">Cómo usar la app</p>
+            </div>
+          </div>
+          <ChevronIcon />
+        </Link>
+
+        <Link
           href="/settings"
           className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 active:bg-gray-100"
         >
