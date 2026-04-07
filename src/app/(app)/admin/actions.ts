@@ -135,6 +135,19 @@ export async function updateCoachDivisions(coachId: string, divisionIds: string[
   return { success: true }
 }
 
+export async function updateUserRole(coachId: string, role: 'admin' | 'coach' | 'tutora') {
+  await assertAdmin()
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('profiles')
+    .update({ role })
+    .eq('id', coachId)
+  if (error) return { error: error.message }
+  revalidatePath('/admin/coaches')
+  revalidatePath(`/admin/coaches/${coachId}`)
+  return { success: true }
+}
+
 export async function deleteCoach(coachId: string) {
   await assertAdmin()
   const admin = createAdminClient()
