@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { assertTutoraOrAdmin } from '@/app/(app)/admin/actions'
+import { assertTutoraOrAdmin } from '@/lib/auth/guards'
 
 export async function createSchoolVisit(formData: FormData) {
   const { user } = await assertTutoraOrAdmin()
