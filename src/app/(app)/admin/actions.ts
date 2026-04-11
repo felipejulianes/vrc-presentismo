@@ -15,8 +15,8 @@ export async function createCoach(formData: FormData) {
   if (!email || !password || !full_name) {
     return { error: 'Todos los campos son obligatorios' }
   }
-  if (password.length < 6) {
-    return { error: 'La contraseña debe tener al menos 6 caracteres' }
+  if (password.length < 8) {
+    return { error: 'La contraseña debe tener al menos 8 caracteres' }
   }
 
   const admin = createAdminClient()
@@ -58,8 +58,8 @@ export async function createTutora(formData: FormData) {
   if (!email || !password || !full_name) {
     return { error: 'Todos los campos son obligatorios' }
   }
-  if (password.length < 6) {
-    return { error: 'La contraseña debe tener al menos 6 caracteres' }
+  if (password.length < 8) {
+    return { error: 'La contraseña debe tener al menos 8 caracteres' }
   }
 
   const admin = createAdminClient()
