@@ -2,8 +2,10 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/guards'
 
 export async function saveWikiPage(formData: FormData) {
+  await assertAdmin()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -35,6 +37,7 @@ export async function saveWikiPage(formData: FormData) {
 }
 
 export async function deleteWikiPage(id: string) {
+  await assertAdmin()
   const supabase = await createClient()
   const { error } = await supabase.from('wiki_pages').delete().eq('id', id)
   if (error) return { error: error.message }
