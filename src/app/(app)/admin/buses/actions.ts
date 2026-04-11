@@ -2,8 +2,10 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/guards'
 
 export async function createBus(formData: FormData) {
+  await assertAdmin()
   const label = (formData.get('label') as string)?.trim()
   const patente = (formData.get('patente') as string)?.trim() || null
   const driver_name = (formData.get('driver_name') as string)?.trim() || null
@@ -24,6 +26,7 @@ export async function createBus(formData: FormData) {
 }
 
 export async function updateBus(formData: FormData) {
+  await assertAdmin()
   const id = formData.get('id') as string
   const label = (formData.get('label') as string)?.trim()
   const patente = (formData.get('patente') as string)?.trim() || null
@@ -44,6 +47,7 @@ export async function updateBus(formData: FormData) {
 }
 
 export async function toggleBusActive(id: string, active: boolean) {
+  await assertAdmin()
   const supabase = await createClient()
   const { error } = await supabase
     .from('buses')

@@ -2,10 +2,12 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { assertAdmin } from '@/lib/auth/guards'
 
 // ── Clubes rivales ──────────────────────────────────────────
 
 export async function addOpponentClub(name: string) {
+  await assertAdmin()
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('opponent_clubs')
@@ -19,6 +21,7 @@ export async function addOpponentClub(name: string) {
 }
 
 export async function renameClub(id: string, name: string) {
+  await assertAdmin()
   const supabase = await createClient()
   const { error } = await supabase
     .from('opponent_clubs')
@@ -31,6 +34,7 @@ export async function renameClub(id: string, name: string) {
 }
 
 export async function toggleClubActive(id: string, active: boolean) {
+  await assertAdmin()
   const supabase = await createClient()
   const { error } = await supabase
     .from('opponent_clubs')
@@ -45,6 +49,7 @@ export async function toggleClubActive(id: string, active: boolean) {
 // ── Actividades por división ─────────────────────────────────
 
 export async function saveDivisionActivity(formData: FormData) {
+  await assertAdmin()
   const event_date = formData.get('event_date') as string
   const division_id = formData.get('division_id') as string
   const activity_type = formData.get('activity_type') as string
@@ -96,6 +101,7 @@ export async function saveDivisionActivity(formData: FormData) {
 }
 
 export async function deleteDivisionActivity(divisionId: string, date: string) {
+  await assertAdmin()
   const supabase = await createClient()
   const { error } = await supabase
     .from('division_activities')
@@ -115,6 +121,7 @@ export async function deleteDivisionActivity(divisionId: string, date: string) {
  * source='coord'  → saves to local_kids_count / local_coaches_count + tercer_tiempo_time
  */
 export async function saveTercerTiempo(formData: FormData) {
+  await assertAdmin()
   const activity_date = formData.get('activity_date') as string
   const division_id = formData.get('division_id') as string
   const source = (formData.get('source') as string) || 'coord'
@@ -163,6 +170,7 @@ export async function updateClubCoordinator(
   clubId: string,
   data: { coordinator_name: string; coordinator_phone: string; coordinator_notes: string }
 ) {
+  await assertAdmin()
   const supabase = await createClient()
   const { error } = await supabase
     .from('opponent_clubs')
@@ -174,6 +182,7 @@ export async function updateClubCoordinator(
 }
 
 export async function addVenue(clubId: string, name: string, address: string) {
+  await assertAdmin()
   const supabase = await createClient()
   const maps_url = address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : null
   const { data, error } = await supabase
@@ -192,6 +201,7 @@ export async function updateVenue(
   address: string,
   coords?: { lat: number; lng: number; maps_url: string } | null
 ) {
+  await assertAdmin()
   const supabase = await createClient()
   const maps_url = coords?.maps_url ?? (address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : null)
   const { error } = await supabase
@@ -216,6 +226,7 @@ export async function updateVenueCoords(
   lng: number,
   maps_url: string,
 ) {
+  await assertAdmin()
   const supabase = await createClient()
   const { error } = await supabase
     .from('club_venues')
@@ -227,6 +238,7 @@ export async function updateVenueCoords(
 }
 
 export async function deleteVenue(venueId: string) {
+  await assertAdmin()
   const supabase = await createClient()
   const { error } = await supabase.from('club_venues').delete().eq('id', venueId)
   if (error) return { error: error.message }
@@ -240,6 +252,7 @@ export async function saveTercerTiempoVisitors(
   division_id: string,
   visitors: { club_id: string; kids_count: number | null; coaches_count: number | null }[]
 ) {
+  await assertAdmin()
   if (!activity_date || !division_id) return { error: 'Faltan datos' }
 
   const supabase = await createClient()

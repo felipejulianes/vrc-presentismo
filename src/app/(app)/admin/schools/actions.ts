@@ -2,8 +2,10 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { assertAdmin } from '@/lib/auth/guards'
 
 export async function createSchool(name: string): Promise<{ id: string; name: string } | null> {
+  await assertAdmin()
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('schools')
@@ -17,6 +19,7 @@ export async function createSchool(name: string): Promise<{ id: string; name: st
 }
 
 export async function updateSchool(formData: FormData) {
+  await assertAdmin()
   const id = formData.get('id') as string
   const name = (formData.get('name') as string)?.trim()
   const aliases = (formData.get('aliases') as string)?.trim() || null
@@ -46,6 +49,7 @@ export async function updateSchool(formData: FormData) {
 }
 
 export async function mergeSchools(formData: FormData) {
+  await assertAdmin()
   // Reasigna todos los jugadores de sourceId a targetId y desactiva source
   const sourceId = formData.get('source_id') as string
   const targetId = formData.get('target_id') as string
