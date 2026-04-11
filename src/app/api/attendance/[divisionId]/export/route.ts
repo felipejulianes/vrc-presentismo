@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { createClient } from '@/lib/supabase/server'
 
 export async function GET(
@@ -91,25 +91,26 @@ export async function GET(
     ...perSessionPresent.map((p, i) => `${p}/${perSessionTotal[i]}`),
   ]
 
-  const wsData = [header, ...rows, footerRow]
-  const ws = XLSX.utils.aoa_to_sheet(wsData)
+  const wb = new ExcelJS.Workbook()
+  const ws = wb.addWorksheet(division.name)
+
+  ws.addRow(header)
+  ws.addRows(rows)
+  ws.addRow(footerRow)
 
   // Column widths
-  ws['!cols'] = [
-    { wch: 30 },
-    { wch: 6 },
-    { wch: 12 },
-    ...sessions.map(() => ({ wch: 12 })),
-  ]
+  ws.getColumn(1).width = 30
+  ws.getColumn(2).width = 6
+  ws.getColumn(3).width = 12
+  sessions.forEach((_, i) => {
+    ws.getColumn(4 + i).width = 12
+  })
 
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, division.name)
-
-  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
+  const buffer = Buffer.from(await wb.xlsx.writeBuffer())
 
   const filename = `presentismo_${division.name.replace(/\s+/g, '_')}.xlsx`
 
-  return new NextResponse(buf, {
+  return new NextResponse(buffer, {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': `attachment; filename="${filename}"`,
