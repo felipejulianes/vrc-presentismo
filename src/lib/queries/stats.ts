@@ -399,6 +399,7 @@ export async function getAdminTrendData(limit = 20, sessionType?: SessionType): 
     .in('division_id', divisionIds)
     .lte('session_date', new Date().toISOString().split('T')[0])
     .order('session_date', { ascending: false })
+    .limit(10000)
 
   if (sessionType && sessionType !== 'todo') {
     sessionsQuery = sessionsQuery.eq('session_type', sessionType)
