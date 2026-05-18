@@ -26,6 +26,7 @@ export default async function AttendanceTablaPage({ params, searchParams }: Page
     .eq('division_id', divisionId)
     .lte('session_date', new Date().toISOString().split('T')[0])
     .order('session_date', { ascending: true })
+    .limit(10000)
 
   if (sessionType !== 'todo') {
     sessionsQuery = sessionsQuery.eq('session_type', sessionType)
@@ -72,6 +73,7 @@ export default async function AttendanceTablaPage({ params, searchParams }: Page
     .from('attendance_records')
     .select('session_id, player_id, present')
     .in('session_id', sessionIds)
+    .limit(10000)
 
   // Build lookup: playerid+sessionid → present
   const lookup: Record<string, boolean | null> = {}

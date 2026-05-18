@@ -98,6 +98,7 @@ export async function getSessionTrend(divisionId: string, limit = 50, sessionTyp
     .from('attendance_records')
     .select('session_id, present')
     .in('session_id', sessionIds)
+    .limit(10000)
 
   const countMap: Record<string, { present: number; total: number }> = {}
   for (const s of sessions) countMap[s.id] = { present: 0, total: 0 }
@@ -431,6 +432,7 @@ export async function getAdminTrendData(limit = 20, sessionType?: SessionType): 
     .select('session_id, present')
     .in('session_id', sessionIds)
     .eq('present', true)
+    .limit(10000)
 
   // Build count map: date → divisionId → count
   const countMap: Record<string, Record<string, number>> = {}
