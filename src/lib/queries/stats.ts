@@ -321,7 +321,7 @@ export async function getAdminKpis(sessionType: SessionType = 'sabado'): Promise
     came30d = new Set((records ?? []).map((r: { player_id: string }) => r.player_id)).size
   }
 
-  // Avg per session: filter by sessionType
+  // Avg per date: total present across all divisions on each date, then average
   const filteredForAvg = sessionType === 'todo'
     ? sessions
     : sessions.filter(s => s.session_type === sessionType)
@@ -334,12 +334,17 @@ export async function getAdminKpis(sessionType: SessionType = 'sabado'): Promise
       .in('session_id', sabadoIds)
       .eq('present', true)
 
-    // group by session
-    const countBySess: Record<string, number> = {}
+    // Map session_id → date
+    const sessDateMap: Record<string, string> = {}
+    for (const s of filteredForAvg) sessDateMap[s.id] = s.session_date
+
+    // Group present count by date (sum all divisions per day)
+    const countByDate: Record<string, number> = {}
     for (const r of sabadoRecords ?? []) {
-      countBySess[r.session_id] = (countBySess[r.session_id] ?? 0) + 1
+      const date = sessDateMap[r.session_id]
+      if (date) countByDate[date] = (countByDate[date] ?? 0) + 1
     }
-    const counts = Object.values(countBySess).filter(n => n > 0)
+    const counts = Object.values(countByDate).filter(n => n > 0)
     avgPerSabado = counts.length > 0
       ? Math.round(counts.reduce((sum, n) => sum + n, 0) / counts.length)
       : 0
