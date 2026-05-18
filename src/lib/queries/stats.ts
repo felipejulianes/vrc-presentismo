@@ -432,7 +432,7 @@ export async function getAdminTrendData(limit = 20, sessionType?: SessionType): 
     .select('session_id, present')
     .in('session_id', sessionIds)
     .eq('present', true)
-    .limit(10000)
+    .limit(50000)
 
   // Build count map: date → divisionId → count
   const countMap: Record<string, Record<string, number>> = {}
