@@ -40,7 +40,7 @@ function buildActivityInfo(act: DivisionActivity): ActivityInfo {
     ? `vs ${act.opponent_club_name}${extraCount > 0 ? ` +${extraCount}` : ''}`
     : ''
   const venueText = act.venue === 'local' ? '· Local' : act.venue === 'visitante' ? '· Visitante' : ''
-  const label = ['⚽ Partido', vsText, venueText].filter(Boolean).join(' ')
+  const label = ['🏉 Partido', vsText, venueText].filter(Boolean).join(' ')
 
   // Venue info for partido visitante
   const venueLabel = act.venue === 'visitante'

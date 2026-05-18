@@ -164,7 +164,7 @@ function DivisionRow({ date, division, activity, clubs, buses, isPending, onAddC
                 : 'bg-white text-gray-600 border-gray-300'
             }`}
           >
-            {t === 'partido' ? '⚽ Partido' : '🏃 Entrena'}
+            {t === 'partido' ? '🏉 Partido' : '🏃 Entrena'}
           </button>
         ))}
       </div>

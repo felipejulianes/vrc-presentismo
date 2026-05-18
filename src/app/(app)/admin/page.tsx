@@ -59,7 +59,7 @@ export default async function AdminPage() {
         <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
           <Link href="/admin/sabados" className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 active:bg-gray-100">
             <div className="flex items-center gap-3">
-              <span className="text-xl">⚽</span>
+              <span className="text-xl">🏉</span>
               <div>
                 <p className="text-sm font-medium text-gray-900">Fixture</p>
                 <p className="text-xs text-gray-400">Partidos, entrenamiento y bondis por sábado</p>

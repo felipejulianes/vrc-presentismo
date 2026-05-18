@@ -84,7 +84,7 @@ export default async function SessionPage({ params }: PageProps) {
       const locationClub = activity.location_club_id ? clubs.find(c => c.id === activity.location_club_id) : null
 
       activityBanner = {
-        label: `⚽ Partido${vsText ? ' — ' + vsText : ''}${venueText ? ' · ' + venueText : ''}`,
+        label: `🏉 Partido${vsText ? ' — ' + vsText : ''}${venueText ? ' · ' + venueText : ''}`,
         sub: whereLabel ? `Sede: ${whereLabel}` : '',
         color: 'bg-blue-50 border-blue-200 text-blue-800',
         mapsUrl,

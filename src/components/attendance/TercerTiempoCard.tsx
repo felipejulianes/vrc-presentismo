@@ -124,7 +124,7 @@ function TercerTiempoCardInner({
   const header = (
     <div className="px-4 pt-3 pb-2 bg-blue-50 border-b border-blue-100">
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">⚽ Partido local</span>
+        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">🏉 Partido local</span>
         {opponentText && <span className="text-xs text-blue-700 font-medium">vs {opponentText}</span>}
         {activity.bus_label && (
           <span className="text-xs text-blue-500">· Bondi: {activity.bus_label}</span>

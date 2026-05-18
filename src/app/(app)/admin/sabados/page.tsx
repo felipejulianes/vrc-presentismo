@@ -80,7 +80,7 @@ export default async function SabadosPage() {
     const parts: string[] = []
     if (s.hasPartido) {
       const clubs = s.opponentNames.slice(0, 2).join(', ')
-      parts.push(`⚽ Partido${clubs ? ` vs ${clubs}` : ''}`)
+      parts.push(`🏉 Partido${clubs ? ` vs ${clubs}` : ''}`)
     }
     if (s.hasEntrenamiento) parts.push('🏃 Entrena')
     return parts.join(' · ') || `${s.count} div.`

@@ -198,7 +198,7 @@ function GlobalSetup({
                 : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             }`}
           >
-            ⚽ Partido
+            🏉 Partido
           </button>
         </div>
 
@@ -453,7 +453,7 @@ function VenueRow({ date, division, activity, clubs, buses, onChange }: VenueRow
                 overrideType === 'partido' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-500'
               }`}
             >
-              ⚽ Partido
+              🏉 Partido
             </button>
           </div>
           {overrideType === 'partido' && (

@@ -57,9 +57,9 @@ function buildSummaryBanner(
 
   const lines: { emoji: string; label: string; divNames: string[] }[] = []
   if (entrenamientos.length > 0) lines.push({ emoji: '🏃', label: 'Entrena', divNames: entrenamientos })
-  if (locales.length > 0) lines.push({ emoji: '⚽', label: 'Local', divNames: locales })
+  if (locales.length > 0) lines.push({ emoji: '🏉', label: 'Local', divNames: locales })
   for (const [loc, divs] of Object.entries(visitanteGroups)) {
-    lines.push({ emoji: '✈️', label: `En ${loc}`, divNames: divs })
+    lines.push({ emoji: '🚌', label: `En ${loc}`, divNames: divs })
   }
   return lines
 }
