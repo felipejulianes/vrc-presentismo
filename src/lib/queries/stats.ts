@@ -427,12 +427,22 @@ export async function getAdminTrendData(limit = 20, sessionType?: SessionType): 
   const sessionMap: Record<string, { division_id: string; date: string }> = {}
   for (const s of relevantSessions) sessionMap[s.id] = { division_id: s.division_id, date: s.session_date }
 
-  const { data: records } = await supabase
+  const { data: records, error: recError } = await supabase
     .from('attendance_records')
     .select('session_id, present')
     .in('session_id', sessionIds)
     .eq('present', true)
     .limit(50000)
+
+  // Diagnostic log — remove after debugging
+  const target = '2026-05-16'
+  const targetSessions = relevantSessions.filter(s => s.session_date === target)
+  const targetRecords = (records ?? []).filter(r => targetSessions.some(s => s.id === r.session_id))
+  console.log('[stats debug] sessionType:', sessionType)
+  console.log('[stats debug] sessionIds.length:', sessionIds.length)
+  console.log('[stats debug] sessions for', target, ':', targetSessions.map(s => s.id + '/' + s.division_id))
+  console.log('[stats debug] records for', target, ':', targetRecords.length)
+  console.log('[stats debug] records error:', recError)
 
   // Build count map: date → divisionId → count
   const countMap: Record<string, Record<string, number>> = {}
