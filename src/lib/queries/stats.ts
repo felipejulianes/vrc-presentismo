@@ -429,12 +429,23 @@ export async function getAdminTrendData(limit = 20, sessionType?: SessionType): 
   const sessionMap: Record<string, { division_id: string; date: string }> = {}
   for (const s of relevantSessions) sessionMap[s.id] = { division_id: s.division_id, date: s.session_date }
 
-  const { data: records } = await adminSupabase
-    .from('attendance_records')
-    .select('session_id, present')
-    .in('session_id', sessionIds)
-    .eq('present', true)
-    .limit(100000)
+  // Paginate to bypass PostgREST max-rows=1000 server cap
+  const PAGE = 1000
+  let allRecords: Array<{ session_id: string; present: boolean }> = []
+  let offset = 0
+  while (true) {
+    const { data: batch } = await adminSupabase
+      .from('attendance_records')
+      .select('session_id, present')
+      .in('session_id', sessionIds)
+      .eq('present', true)
+      .range(offset, offset + PAGE - 1)
+    if (!batch || batch.length === 0) break
+    allRecords = allRecords.concat(batch)
+    if (batch.length < PAGE) break
+    offset += PAGE
+  }
+  const records = allRecords
 
   // Build count map: date → divisionId → count
   const countMap: Record<string, Record<string, number>> = {}
