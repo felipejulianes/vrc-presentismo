@@ -440,8 +440,14 @@ export async function getAdminTrendData(limit = 20, sessionType?: SessionType): 
   const targetRecords = (records ?? []).filter(r => targetSessions.some(s => s.id === r.session_id))
   console.log('[stats debug] sessionType:', sessionType)
   console.log('[stats debug] sessionIds.length:', sessionIds.length)
+  console.log('[stats debug] total records returned:', (records ?? []).length)
   console.log('[stats debug] sessions for', target, ':', targetSessions.map(s => s.id + '/' + s.division_id))
   console.log('[stats debug] records for', target, ':', targetRecords.length)
+  // Per-session breakdown for target date
+  for (const s of targetSessions) {
+    const count = (records ?? []).filter(r => r.session_id === s.id).length
+    console.log('[stats debug]   session', s.id.slice(0, 8), 'div', s.division_id.slice(0, 8), '→', count, 'records')
+  }
   console.log('[stats debug] records error:', recError)
 
   // Build count map: date → divisionId → count
