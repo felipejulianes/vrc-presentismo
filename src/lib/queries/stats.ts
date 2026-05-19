@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { daysAgoISO } from '@/lib/utils/dates'
 
 // Divisiones visibles (solo infantiles, M6-M14)
@@ -381,6 +382,7 @@ export type AdminTrendData = {
 
 export async function getAdminTrendData(limit = 20, sessionType?: SessionType): Promise<AdminTrendData> {
   const supabase = await createClient()
+  const adminSupabase = createAdminClient()
 
   const { data: divisions } = await supabase
     .from('divisions')
@@ -394,7 +396,7 @@ export async function getAdminTrendData(limit = 20, sessionType?: SessionType): 
 
   const divisionIds = divisions.map((d: { id: string }) => d.id)
 
-  let sessionsQuery = supabase
+  let sessionsQuery = adminSupabase
     .from('training_sessions')
     .select('id, session_date, division_id')
     .in('division_id', divisionIds)
@@ -427,28 +429,12 @@ export async function getAdminTrendData(limit = 20, sessionType?: SessionType): 
   const sessionMap: Record<string, { division_id: string; date: string }> = {}
   for (const s of relevantSessions) sessionMap[s.id] = { division_id: s.division_id, date: s.session_date }
 
-  const { data: records, error: recError } = await supabase
+  const { data: records } = await adminSupabase
     .from('attendance_records')
     .select('session_id, present')
     .in('session_id', sessionIds)
     .eq('present', true)
-    .limit(50000)
-
-  // Diagnostic log — remove after debugging
-  const target = '2026-05-16'
-  const targetSessions = relevantSessions.filter(s => s.session_date === target)
-  const targetRecords = (records ?? []).filter(r => targetSessions.some(s => s.id === r.session_id))
-  console.log('[stats debug] sessionType:', sessionType)
-  console.log('[stats debug] sessionIds.length:', sessionIds.length)
-  console.log('[stats debug] total records returned:', (records ?? []).length)
-  console.log('[stats debug] sessions for', target, ':', targetSessions.map(s => s.id + '/' + s.division_id))
-  console.log('[stats debug] records for', target, ':', targetRecords.length)
-  // Per-session breakdown for target date
-  for (const s of targetSessions) {
-    const count = (records ?? []).filter(r => r.session_id === s.id).length
-    console.log('[stats debug]   session', s.id.slice(0, 8), 'div', s.division_id.slice(0, 8), '→', count, 'records')
-  }
-  console.log('[stats debug] records error:', recError)
+    .limit(100000)
 
   // Build count map: date → divisionId → count
   const countMap: Record<string, Record<string, number>> = {}
