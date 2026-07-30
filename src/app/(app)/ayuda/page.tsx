@@ -254,7 +254,7 @@ function GuiaEntrenador() {
             <li><strong>Tendencia</strong> sesión por sesión (gráfico)</li>
             <li><strong>Ranking individual</strong> de asistencia</li>
           </ul>
-          <p className="mt-2">Podés filtrar por <em>Sábados</em>, <em>Miércoles</em> o <em>Todo</em> usando los tabs de arriba.</p>
+          <p className="mt-2">Podés filtrar por <em>Sábados</em>, <em>Semana</em> o <em>Todo</em> usando los tabs de arriba.</p>
         </CardText>
       </Card>
 

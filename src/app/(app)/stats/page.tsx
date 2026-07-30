@@ -12,7 +12,7 @@ import { StatsDivisionSelector } from './StatsDivisionSelector'
 
 export default async function StatsPage({ searchParams }: { searchParams: Promise<{ tipo?: string }> }) {
   const { tipo } = await searchParams
-  const sessionType: SessionType = (tipo === 'miercoles' || tipo === 'todo') ? tipo : 'sabado'
+  const sessionType: SessionType = (tipo === 'semana' || tipo === 'todo') ? tipo : 'sabado'
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -5,7 +5,7 @@ import { daysAgoISO } from '@/lib/utils/dates'
 // Divisiones visibles (solo infantiles, M6-M14)
 const JUVENILE_NAMES = ['M15', 'M16', 'M17', 'M19', 'alumni']
 
-export type SessionType = 'sabado' | 'miercoles' | 'todo'
+export type SessionType = 'sabado' | 'semana' | 'todo'
 
 export type PlayerStat = {
   player_id: string

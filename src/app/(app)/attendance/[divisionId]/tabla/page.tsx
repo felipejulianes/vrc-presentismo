@@ -16,7 +16,7 @@ function fmtDate(dateStr: string): string {
 export default async function AttendanceTablaPage({ params, searchParams }: PageProps) {
   const { divisionId } = params
   const { tipo } = await searchParams
-  const sessionType = tipo === 'miercoles' ? 'miercoles' : tipo === 'todo' ? 'todo' : 'sabado'
+  const sessionType = tipo === 'semana' ? 'semana' : tipo === 'todo' ? 'todo' : 'sabado'
 
   const supabase = await createClient()
 
@@ -117,7 +117,7 @@ export default async function AttendanceTablaPage({ params, searchParams }: Page
           <p className="text-sm text-gray-500">{players.length} jugadores · {sessions.length} entrenamientos</p>
           {/* Tipo filter */}
           <div className="flex bg-gray-100 rounded-lg p-0.5 gap-0.5 mt-1 w-fit">
-            {(['sabado', 'miercoles', 'todo'] as const).map(t => (
+            {(['sabado', 'semana', 'todo'] as const).map(t => (
               <Link
                 key={t}
                 href={`/attendance/${divisionId}/tabla${t !== 'sabado' ? `?tipo=${t}` : ''}`}
@@ -127,7 +127,7 @@ export default async function AttendanceTablaPage({ params, searchParams }: Page
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                {t === 'sabado' ? 'Sáb' : t === 'miercoles' ? 'Miér' : 'Todo'}
+                {t === 'sabado' ? 'Sáb' : t === 'semana' ? 'Semana' : 'Todo'}
               </Link>
             ))}
           </div>

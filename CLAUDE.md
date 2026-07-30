@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # VRC Presentismo — Contexto para agentes de IA
 
 ## Qué es esto
@@ -8,6 +12,17 @@ App web PWA para que entrenadores de **Virreyes Rugby Club** (Buenos Aires, Arge
 - **Backend/DB/Auth/Storage**: Supabase (PostgreSQL + Auth + Storage)
 - **Deploy**: Vercel (frontend) + Supabase cloud — CI automático desde GitHub en ~2 min
 - **Repo**: https://github.com/felipejulianes/vrc-presentismo
+
+## Comandos de desarrollo
+```bash
+npm run dev      # servidor local (localhost:3000)
+npm run build    # build de producción — verifica TypeScript (zero errors requerido antes de push)
+npm run lint     # ESLint con next/core-web-vitals + next/typescript
+```
+
+No hay test suite configurado. `playwright` está en devDependencies pero sin scripts de test definidos.
+
+**Workflow**: editar → `npm run build` → commit → push → Vercel despliega en ~2 min.
 
 ## Roles de usuario
 | Rol | Acceso |
@@ -89,9 +104,13 @@ Prerugby (M6/M7/M8) se maneja junto para el entrenador pero son 3 filas separada
 /api/geocode                           — GET: proxy Nominatim (solo usuarios autenticados)
 ```
 
+## Arquitectura de layouts
+
+El route group `(app)` tiene un Server Component layout (`src/app/(app)/layout.tsx`) que actúa como segunda capa de auth: verifica perfil y divisiones asignadas, muestra la pantalla "cuenta pendiente" si el coach no tiene divisiones, y renderiza el header verde + `<BottomNav>` para el resto. El middleware (`src/middleware.ts`) es la primera capa: redirige a `/login` si no hay sesión.
+
 ## Schema de base de datos (Supabase/PostgreSQL)
 
-32 migraciones aplicadas (`001` → `032`). Tablas principales:
+33 migraciones aplicadas (`001` → `033`). Tablas principales:
 
 ```sql
 divisions              id, name, category, sort_order, min_age, max_age
@@ -108,6 +127,10 @@ players                id, first_name, last_name, dni (UNIQUE), birth_date,
 
 training_sessions      id, division_id, session_date, created_by, notes, session_type
                        UNIQUE(division_id, session_date)
+                       session_type ('sabado'|'semana') lo clasifica AUTOMÁTICAMENTE
+                       un trigger según el día (fin de semana → 'sabado', resto → 'semana').
+                       No setear session_type a mano; el trigger lo sobreescribe.
+                       Entrenamientos: martes+jueves desde 2026-08-04 (antes: miércoles).
 
 attendance_records     session_id, player_id, present (bool)
                        UNIQUE(session_id, player_id)
@@ -167,6 +190,11 @@ SUPABASE_SERVICE_ROLE_KEY=...   ← solo servidor, nunca NEXT_PUBLIC_
 ```
 
 ## Archivos clave
+
+### Tipos globales
+| Archivo | Qué hace |
+|---------|----------|
+| `src/types/index.ts` | Tipos TypeScript compartidos: `Player`, `Division`, `TrainingSession`, `AttendanceRecord`, `Profile`, `PlayerInterview`, `SchoolVisit`, `AttendanceState` |
 
 ### Supabase clients
 | Archivo | Qué hace |
@@ -300,46 +328,6 @@ dorado:  #f5c020  (vrc-gold)
 | `manifest.json` | Configuración PWA |
 | `icons/icon-192.png` | Ícono PWA 192×192 (pendiente: usar logo del club) |
 | `icons/icon-512.png` | Ícono PWA 512×512 (pendiente: usar logo del club) |
-
-## Estado actual de funcionalidades
-| Feature | Estado |
-|---------|--------|
-| Auth email+pass / Google OAuth | ✅ |
-| Password reset por email | ✅ |
-| Cambio de contraseña desde settings | ✅ |
-| Auto-creación de perfil en primer login | ✅ |
-| Pantalla "cuenta pendiente" para usuarios sin división | ✅ |
-| Toma de lista con grilla de jugadores + foto | ✅ |
-| Asistencia offline con IndexedDB queue (drain on reconnect) | ✅ |
-| Historial de sesiones por división | ✅ |
-| Tabla cruzada asistencia + export Excel | ✅ |
-| CRUD jugadores + foto con cámara (iOS/Android/PWA) | ✅ |
-| Estadísticas (año / 30d / desde alta / tendencia) | ✅ |
-| Links WhatsApp + llamada para contactar padres | ✅ |
-| Dos referentes de contacto por jugador | ✅ |
-| Dirección de jugador con geocoding Nominatim | ✅ |
-| Sección Documentación (DNI / apto médico / ficha) | ✅ |
-| Seguimiento de ausentes (log de contactos) | ✅ |
-| Bitácora del entrenador (notas por jugador) | ✅ |
-| Panel admin: CRUD coaches/tutoras, KPIs globales | ✅ |
-| Admin: vista del día (asistencia cruzada + date picker) | ✅ |
-| Avance de categoría anual (preview + ejecución irreversible) | ✅ |
-| Módulo coordinación: fixture de sábados | ✅ |
-| Tabla anual de fixture (E/L/V por división) | ✅ |
-| Setup de sábado: actividad por división + bondi + rival | ✅ |
-| Catálogo global de bondis (chofer, patente) | ✅ |
-| Tercer tiempo: cantidades coach vs coordinación + visitantes | ✅ |
-| Browser de 90 clubes URBA con sedes | ✅ |
-| Geocoding de sedes con herramienta batch | ✅ |
-| Buscador de rival al configurar fixture | ✅ |
-| Links Maps + WhatsApp en banner de sesión | ✅ |
-| Wiki con markdown (reglamento + ejercicios) | ✅ |
-| Rol tutora: panel, entrevistas, visitas a colegios | ✅ |
-| Colegios: combobox buscable, matrix divisiones | ✅ |
-| Guía de uso (/ayuda) con screenshots | ✅ |
-| Auth guards en todas las server actions admin | ✅ |
-| PWA instalable | ✅ |
-| Íconos PWA personalizados (logo del club) | ⚠️ pendiente |
 
 ## Workflow de desarrollo
 1. Cambios en código → `npm run build` para verificar (zero TypeScript errors)

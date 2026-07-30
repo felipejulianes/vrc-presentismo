@@ -80,7 +80,7 @@ export function AdminStatsView({ totalActive, came30d, avgPerSabado, sessionType
       {/* Session type toggle */}
       <div className="px-4 pb-3">
         <div className="flex bg-gray-100 rounded-lg p-0.5 gap-0.5 w-fit">
-          {(['sabado', 'miercoles', 'todo'] as SessionType[]).map(t => (
+          {(['sabado', 'semana', 'todo'] as SessionType[]).map(t => (
             <button
               key={t}
               onClick={() => handleTipoChange(t)}
@@ -88,7 +88,7 @@ export function AdminStatsView({ totalActive, came30d, avgPerSabado, sessionType
                 sessionType === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
               }`}
             >
-              {t === 'sabado' ? 'Sábado' : t === 'miercoles' ? 'Miércoles' : 'Todo'}
+              {t === 'sabado' ? 'Sábado' : t === 'semana' ? 'Semana' : 'Todo'}
             </button>
           ))}
         </div>

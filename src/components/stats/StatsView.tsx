@@ -14,7 +14,7 @@ type RankingMode = 'year' | 'days' | 'since'
 
 const SESSION_TYPE_TABS: { key: SessionType; label: string }[] = [
   { key: 'sabado', label: 'Sábados' },
-  { key: 'miercoles', label: 'Miércoles' },
+  { key: 'semana', label: 'Semana' },
   { key: 'todo', label: 'Todo' },
 ]
 
