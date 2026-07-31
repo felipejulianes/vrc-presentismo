@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getPlayersByDivision } from '@/lib/queries/players'
 import { getSessionWithAttendance } from '@/lib/queries/attendance'
 import { AttendanceGrid } from '@/components/attendance/AttendanceGrid'
+import { birthdayLabelForDate } from '@/lib/utils/birthdays'
 
 interface PageProps {
   params: { divisionId: string }
@@ -38,6 +39,13 @@ export default async function NewAttendancePage({ params, searchParams }: PagePr
     }
   }
 
+  const refDate = new Date(date + 'T12:00:00')
+  const birthdays: Record<string, string> = {}
+  for (const p of players) {
+    const label = birthdayLabelForDate(p.birth_date, refDate)
+    if (label) birthdays[p.id] = label
+  }
+
   return (
     <AttendanceGrid
       players={players}
@@ -47,6 +55,7 @@ export default async function NewAttendancePage({ params, searchParams }: PagePr
       initialAttendance={initialAttendance}
       showDatePicker
       backUrl={`/attendance/${divisionId}`}
+      birthdays={birthdays}
     />
   )
 }

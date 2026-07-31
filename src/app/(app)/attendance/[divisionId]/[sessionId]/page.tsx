@@ -11,6 +11,7 @@ import {
 import { AttendanceGrid } from '@/components/attendance/AttendanceGrid'
 import { TercerTiempoCard } from '@/components/attendance/TercerTiempoCard'
 import { formatWhatsAppNumber } from '@/lib/utils/whatsapp'
+import { birthdayLabelForDate } from '@/lib/utils/birthdays'
 
 interface PageProps {
   params: { divisionId: string; sessionId: string }
@@ -41,6 +42,13 @@ export default async function SessionPage({ params }: PageProps) {
   }
 
   const attendanceCount = Object.values(initialAttendance).filter(Boolean).length
+
+  const bdayRef = new Date(sessionData.date + 'T12:00:00')
+  const birthdays: Record<string, string> = {}
+  for (const p of players) {
+    const label = birthdayLabelForDate(p.birth_date, bdayRef)
+    if (label) birthdays[p.id] = label
+  }
 
   const [activity, existingReport, existingVisitors, clubs] = await Promise.all([
     getActivityForDivisionDate(divisionId, sessionData.date).catch(() => null),
@@ -202,6 +210,7 @@ export default async function SessionPage({ params }: PageProps) {
         date={sessionData.date}
         initialAttendance={initialAttendance}
         backUrl={`/attendance/${divisionId}`}
+        birthdays={birthdays}
       />
 
       {/* Tercer tiempo — only for home games */}

@@ -15,6 +15,7 @@ interface AttendanceGridProps {
   initialAttendance: AttendanceState
   showDatePicker?: boolean
   backUrl?: string
+  birthdays?: Record<string, string>
 }
 
 function todayDate() {
@@ -29,6 +30,7 @@ export function AttendanceGrid({
   initialAttendance,
   showDatePicker = false,
   backUrl,
+  birthdays,
 }: AttendanceGridProps) {
   const router = useRouter()
   const [search, setSearch] = useState('')
@@ -117,6 +119,7 @@ export function AttendanceGrid({
                 player={player}
                 present={!!attendance[player.id]}
                 onToggle={() => toggle(player.id)}
+                birthdayLabel={birthdays?.[player.id]}
               />
             ))}
           </div>

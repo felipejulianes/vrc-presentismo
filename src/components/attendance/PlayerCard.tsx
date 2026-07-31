@@ -7,20 +7,31 @@ interface PlayerCardProps {
   player: Player
   present: boolean
   onToggle: () => void
+  birthdayLabel?: string
 }
 
-export function PlayerCard({ player, present, onToggle }: PlayerCardProps) {
+export function PlayerCard({ player, present, onToggle, birthdayLabel }: PlayerCardProps) {
   const initials = `${player.first_name[0]}${player.last_name[0]}`.toUpperCase()
 
   return (
     <button
       onClick={onToggle}
-      className={`flex flex-col items-center p-2 rounded-xl border-2 transition-all active:scale-95 select-none ${
+      className={`relative flex flex-col items-center p-2 rounded-xl border-2 transition-all active:scale-95 select-none ${
         present
           ? 'border-green-500 bg-green-50'
+          : birthdayLabel
+          ? 'border-amber-400 bg-amber-50'
           : 'border-gray-200 bg-white'
       }`}
     >
+      {birthdayLabel && (
+        <span
+          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center text-xs shadow"
+          title={birthdayLabel}
+        >
+          🎂
+        </span>
+      )}
       {/* Foto / Iniciales */}
       <div className="relative w-16 h-16 rounded-full overflow-hidden mb-1.5">
         {player.photo_url ? (
@@ -73,6 +84,11 @@ export function PlayerCard({ player, present, onToggle }: PlayerCardProps) {
           present ? 'text-green-500' : 'text-gray-300'
         }`}>
           &ldquo;{player.sobrenombre}&rdquo;
+        </span>
+      )}
+      {birthdayLabel && (
+        <span className="text-[9px] font-bold text-orange-600 leading-tight mt-0.5 text-center">
+          {birthdayLabel}
         </span>
       )}
     </button>

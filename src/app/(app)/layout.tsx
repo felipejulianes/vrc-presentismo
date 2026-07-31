@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { logout } from '@/app/(auth)/login/actions'
 import { createClient } from '@/lib/supabase/server'
 import { BottomNav } from '@/components/layout/BottomNav'
+import { countBirthdaysToday } from '@/lib/queries/birthdays'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -88,6 +89,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   // --- Normal layout ---
+  const todayBdayCount = await countBirthdaysToday()
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Top bar */}
@@ -104,6 +107,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           />
         </Link>
         <div className="flex items-center gap-3">
+          <Link href="/cumpleanos" className="relative text-green-100 hover:text-white" aria-label="Cumpleaños">
+            <span className="text-lg leading-none">🎂</span>
+            {todayBdayCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-300 rounded-full ring-2 ring-vrc-green"></span>
+            )}
+          </Link>
           <span className="text-sm text-green-100 hidden sm:block">{profile?.full_name}</span>
           <form action={logout}>
             <button type="submit" className="text-xs text-green-200 hover:text-white">

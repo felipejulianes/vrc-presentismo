@@ -3,8 +3,11 @@ import Link from 'next/link'
 import { MapsLink } from '@/components/attendance/MapsLink'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionsForDivision } from '@/lib/queries/attendance'
+import { getPlayersByDivision } from '@/lib/queries/players'
 import { getActivitiesForDivision } from '@/lib/queries/sabados'
 import type { DivisionActivity } from '@/lib/queries/sabados'
+import { getBirthdayOccurrence } from '@/lib/utils/birthdays'
+import { BirthdaysStrip } from '@/components/birthdays/BirthdaysStrip'
 
 interface PageProps {
   params: { divisionId: string }
@@ -66,10 +69,22 @@ export default async function AttendanceDivisionPage({ params }: PageProps) {
 
   if (!division) notFound()
 
-  const [sessions, activities] = await Promise.all([
+  const [sessions, activities, players] = await Promise.all([
     getSessionsForDivision(divisionId),
     getActivitiesForDivision(divisionId),
+    getPlayersByDivision(divisionId),
   ])
+
+  // Cumpleaños de la división para la tira fina
+  const bdayRef = new Date()
+  const bdayTodayNames: string[] = []
+  let bdayWeekCount = 0
+  for (const p of players) {
+    const occ = getBirthdayOccurrence(p.birth_date, bdayRef)
+    if (!occ) continue
+    if (occ.bucket === 'hoy') bdayTodayNames.push(p.first_name)
+    else if (occ.bucket === 'esta_semana' || occ.bucket === 'proxima_semana') bdayWeekCount++
+  }
 
   // Build activity map keyed by date
   const activityByDate: Record<string, ActivityInfo> = {}
@@ -123,6 +138,12 @@ export default async function AttendanceDivisionPage({ params }: PageProps) {
           </Link>
         </div>
       </div>
+
+      {(bdayTodayNames.length > 0 || bdayWeekCount > 0) && (
+        <div className="px-4">
+          <BirthdaysStrip todayNames={bdayTodayNames} weekCount={bdayWeekCount} />
+        </div>
+      )}
 
       {sessions.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center py-16 px-4 text-gray-400">
